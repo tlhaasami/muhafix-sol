@@ -1,15 +1,16 @@
-# Core dependencies for Muhafiz.sol
-pandas>=2.2.0
-numpy>=2.0.0
-scipy>=1.13.0
-scikit-learn>=1.5.0
-datasets>=3.0.0
-datasketch>=1.6.5
-pyyaml>=6.0.0
-joblib>=1.4.0
-matplotlib>=3.9.0
-streamlit>=1.38.0
-pyarrow>=17.0.0
-pytest>=8.3.0
-tqdm>=4.66.0
-requests>=2.32.0
+# Muhafiz.sol runtime dependencies (data pipeline, evaluation, Streamlit app, tests).
+# Pinned after a clean install in a fresh virtual environment (Python 3.14, Windows 11).
+# Training the MLP additionally needs PyTorch: pip install -r requirements-train.txt
+numpy==2.5.4
+pandas==3.1.1
+scipy==1.18.1
+scikit-learn==1.9.1
+pyarrow==26.0.1
+joblib==1.6.0
+matplotlib==3.11.2
+PyYAML==6.0.3
+requests==2.34.2
+tqdm==4.70.1
+datasketch==2.0.0
+streamlit==1.67.0
+pytest==9.2.0
