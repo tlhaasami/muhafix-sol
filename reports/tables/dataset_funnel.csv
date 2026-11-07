@@ -1,0 +1,6 @@
+step,contracts
+rows_in_raw_shards,120608
+after_dropping_duplicate_addresses,120608
+after_dropping_failed_slither_runs,120608
+after_dropping_empty_or_tiny_sources,120510
+after_exact_deduplication,65058
