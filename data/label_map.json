@@ -1,0 +1,86 @@
+{
+  "version": "1.0.0",
+  "target_classes": [
+    "access-control",
+    "arithmetic",
+    "reentrancy",
+    "unchecked-calls",
+    "locked-ether",
+    "bad-randomness",
+    "other"
+  ],
+  "class_to_id": {
+    "access-control": 0,
+    "arithmetic": 1,
+    "reentrancy": 2,
+    "unchecked-calls": 3,
+    "locked-ether": 4,
+    "bad-randomness": 5,
+    "other": 6
+  },
+  "id_to_class": {
+    "0": "access-control",
+    "1": "arithmetic",
+    "2": "reentrancy",
+    "3": "unchecked-calls",
+    "4": "locked-ether",
+    "5": "bad-randomness",
+    "6": "other"
+  },
+  "slither_small_id_to_target": {
+    "0": "access-control",
+    "1": "arithmetic",
+    "2": "other",
+    "3": "reentrancy",
+    "4": "safe",
+    "5": "unchecked-calls",
+    "6": "locked-ether",
+    "7": "bad-randomness",
+    "8": "other"
+  },
+  "slither_detector_mapping": {
+    "suicidal": "access-control",
+    "arbitrary-send": "access-control",
+    "controlled-delegatecall": "access-control",
+    "controlled-array-length": "access-control",
+    "unprotected-upgrade": "access-control",
+    "tx-origin": "access-control",
+    "divide-before-multiply": "arithmetic",
+    "reentrancy-eth": "reentrancy",
+    "reentrancy-no-eth": "reentrancy",
+    "unused-return": "unchecked-calls",
+    "unchecked-lowlevel": "unchecked-calls",
+    "unchecked-transfer": "unchecked-calls",
+    "locked-ether": "locked-ether",
+    "unchecked-send": "locked-ether",
+    "weak-prng": "bad-randomness",
+    "msg-value-loop": "other",
+    "delegatecall-loop": "other",
+    "array-by-reference": "other",
+    "incorrect-equality": "other",
+    "backdoor": "other",
+    "rtlo": "other",
+    "constant-function-state": "other",
+    "constant-function-asm": "other",
+    "uninitialized-storage": "other",
+    "uninitialized-local": "other",
+    "uninitialized-state": "other",
+    "mapping-deletion": "other"
+  },
+  "smartbugs_category_mapping": {
+    "access_control": "access-control",
+    "arithmetic": "arithmetic",
+    "reentrancy": "reentrancy",
+    "unchecked_low_level_calls": "unchecked-calls",
+    "denial_of_service": "locked-ether",
+    "bad_randomness": "bad-randomness",
+    "time_manipulation": "bad-randomness",
+    "front_running": "other",
+    "short_addresses": "other",
+    "other": "other"
+  },
+  "unmapped_smartbugs_categories": [
+    "front_running",
+    "short_addresses"
+  ]
+}

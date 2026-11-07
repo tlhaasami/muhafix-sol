@@ -1,0 +1,30 @@
+# Python / Virtualenv
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+*.env
+
+# Data & Models (large files not committed)
+data/raw/*
+!data/raw/.gitkeep
+data/processed/*
+!data/processed/.gitkeep
+data/features/*
+!data/features/.gitkeep
+data/gold/*
+!data/gold/.gitkeep
+models/*.joblib
+models/*.pkl
+
+# Testing & Jupyter
+.pytest_cache/
+.ipynb_checkpoints/
+extracted_doc.txt
+project.docx
+
+# OS-specific
+.DS_Store
+Thumbs.db
