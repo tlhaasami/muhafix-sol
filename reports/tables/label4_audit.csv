@@ -1,0 +1,4 @@
+config,contracts,label_names,id4_name,id4_share,id4_with_other_ids_share,max_id_seen,safe_id
+big,106474,6,safe,0.339473,0,5,4
+small,14134,9,safe,0.212254,0,8,4
+all,120608,39,divide-before-multiply,0.166191,0.137114,38,38

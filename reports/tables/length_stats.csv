@@ -1,0 +1,12 @@
+dataset,quantile,tokens,lines
+slither_dedup,0.5,2467,724
+slither_dedup,0.9,6011.3,1966
+slither_dedup,0.95,8052.3,2488
+slither_dedup,0.99,17941.4,4356.43
+slither_dedup,1,80058,26303
+smartbugs,0.5,127,42
+smartbugs,0.9,664.2,172.6
+smartbugs,0.95,1459.4,308.8
+smartbugs,0.99,4483.46,844.5
+smartbugs,1,7069,2470
+slither_dedup,-1,367,0.00564112

@@ -1,0 +1,10 @@
+family,positives,prevalence,kept_as_class
+unchecked-calls,31144,0.478711,True
+other,22446,0.345015,True
+reentrancy,18710,0.28759,True
+safe,17900,0.275139,False
+arithmetic,12453,0.191414,True
+access-control,9654,0.148391,True
+locked-ether,3287,0.0505241,True
+bad-randomness,2503,0.0384734,True
+double-spending,368,0.00565649,False

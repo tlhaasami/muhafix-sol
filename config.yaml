@@ -1,5 +1,5 @@
-# Muhafiz.sol Configuration File
-# Phase 1: Data Foundation and Feature Pipeline
+# Muhafiz.sol configuration file.
+# Every script reads its paths, seeds and hyper-parameters from here (blueprint P1.1).
 
 project:
   name: "muhafiz-sol"
@@ -7,48 +7,83 @@ project:
   random_seed: 42
 
 paths:
-  raw_data_dir: "data/raw"
-  processed_data_dir: "data/processed"
-  gold_data_dir: "data/gold"
+  raw_dir: "data/raw"
+  slither_raw_dir: "data/raw/slither"
+  smartbugs_dir: "data/raw/smartbugs-curated"
+  interim_dir: "data/interim"
+  processed_dir: "data/processed"
+  gold_dir: "data/gold"
   features_dir: "data/features"
   models_dir: "models"
   reports_dir: "reports"
+  figures_dir: "reports/figures"
+  tables_dir: "reports/tables"
   docs_dir: "docs"
 
 dataset:
+  # Dataset A: training / validation / in-distribution test.
   slither_hf_repo: "mwritescode/slither-audited-smart-contracts"
-  slither_config_small: "small-multilabel"
-  slither_config_big: "big-multilabel"
+  slither_base_url: "https://huggingface.co/datasets/mwritescode/slither-audited-smart-contracts/resolve/main/data"
+  slither_shards: 9            # data/raw/contracts0..8.parquet on the Hub
+  keep_raw_shards: false       # raw shards are ~1.7 GB; deleted after extraction
+  # Dataset B: external gold test only. Pinned commit for reproducibility.
   smartbugs_git_repo: "https://github.com/smartbugs/smartbugs-curated.git"
   split_ratios:
     train: 0.70
     val: 0.15
     test: 0.15
-  min_class_prevalence: 0.01  # Minimum ~1% prevalence rule
+
+labels:
+  # Rare-class rule (blueprint P1.2): keep a class only if it reaches both thresholds
+  # in the de-duplicated training pool; otherwise merge it into "other" or exclude it.
+  min_prevalence: 0.01
+  min_train_positives: 300
+
+preprocessing:
+  # Long-file policy (P1.4): token budget chosen from the length distribution
+  # (see docs/data_card.md). Files longer than this keep their head and tail.
+  max_tokens: 20000
+  head_fraction: 0.25
 
 deduplication:
-  exact_hash: "sha256"
   shingle_size: 5
   minhash_num_perm: 128
   jaccard_threshold: 0.80
-
-preprocessing:
-  max_token_length: 4096
-  protected_keywords:
-    - "call"
-    - "send"
-    - "transfer"
-    - "delegatecall"
-    - "selfdestruct"
-    - "msg.sender"
-    - "tx.origin"
-    - "block.timestamp"
-    - "revert"
-    - "assert"
-    - "require"
+  # Number of contracts considered for near-duplicate search (P1.5 allows a
+  # stratified subset when the full set is too slow). null = use everything.
+  max_contracts: null
+  # Clone groups larger than this share of the pool always go to TRAIN, so no single
+  # template family dominates the validation or test split (see docs/dedup_report.md).
+  max_eval_group_fraction: 0.01
 
 features:
   ngram_range: [1, 3]
-  max_features: 10000
+  max_features: 20000
+  min_df: 5
+  max_df: 0.95
   sublinear_tf: true
   svd_components: 512
+  vocab_fit_docs: 20000        # vocabulary is chosen on a seeded subset of TRAIN only
+
+training:
+  mlp:
+    hidden: [512, 128]
+    dropout: 0.3
+    lr: 0.001
+    weight_decay: 0.00001
+    batch_size: 256
+    max_epochs: 30
+    patience: 4
+    seeds: [42, 43, 44]
+  threshold:
+    beta: 2.0                  # thresholds maximise F-beta (F2 favours recall)
+    min_precision: 0.20        # precision guard
+  risk:
+    high_margin: 0.25          # "high" if p >= t + margin*(1-t) for any class
+  bootstrap_iterations: 1000
+
+explain:
+  top_k: 3
+  max_functions: 200
+  max_lines: 120
+  top_functions: 3

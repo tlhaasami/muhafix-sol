@@ -1,125 +1,145 @@
 """
-Muhafiz.sol - SmartBugs Gold Set Builder
-Phase 1: Work Package P1.3
-Owner: Talha Sami (24I-3118)
+Muhafiz.sol - SmartBugs Curated gold set (blueprint P1.3).
 
-Loads curated contracts from smartbugs-curated, extracts line annotations,
-cleans the contracts using line-preserving comment stripping,
-and generates the gold evaluation dataset.
+Dataset B is used for *testing only*. Every contract is cleaned with the
+line-preserving routine so the ``@vulnerable_at_lines`` header and the inline
+``// <yes> <report> CATEGORY`` markers disappear while the annotated line
+numbers stay valid. Unlike the earlier prototype, leftover markers are *not*
+patched over: if any survive cleaning the build fails, because that would mean
+the answers could leak into the model input (acceptance test A1).
+
+Outputs
+  data/gold/smartbugs_gold.parquet   id, category, source_clean, vulnerable_lines, ...
+  reports/tables/smartbugs_counts.csv
+  reports/tables/smartbugs_pragmas.csv
+
+Run:  python -m src.build_gold
 """
 
-import os
-import json
+from __future__ import annotations
+
 import re
-from typing import Dict, List, Any
-from src.preprocess import clean_source
+import subprocess
+from collections import Counter, defaultdict
+from pathlib import Path
+from typing import Any, Dict, List
+
+import pandas as pd
+
+from src.config import load_config, path
+from src.preprocess import clean_source, count_lines, split_lines
+
+SMARTBUGS_COMMIT = "230e649123477eff332742a59a1c7cc6dc286cab"  # pinned (16 Jun 2024)
+LEAK_MARKERS = ("@vulnerable_at_lines", "<yes>", "<report>", "@source", "@author")
+_PRAGMA = re.compile(r"pragma\s+solidity\s+([^;]+);")
 
 
-def build_smartbugs_gold(
-    smartbugs_dir: str = "data/raw/smartbugs-curated",
-    output_parquet: str = "data/gold/smartbugs_gold.parquet",
-    output_json: str = "data/gold/smartbugs_gold.json",
-    counts_csv: str = "reports/tables/smartbugs_counts.csv"
-) -> Dict[str, Any]:
-    vulnerabilities_file = os.path.join(smartbugs_dir, "vulnerabilities.json")
-    if not os.path.exists(vulnerabilities_file):
-        raise FileNotFoundError(f"Missing {vulnerabilities_file}. Ensure smartbugs-curated is cloned.")
+def ensure_smartbugs(dest: Path | None = None) -> Path:
+    """Clone SmartBugs Curated at the pinned commit if it is not present."""
+    dest = dest or path("smartbugs_dir")
+    if (dest / "vulnerabilities.json").exists():
+        return dest
+    url = load_config()["dataset"]["smartbugs_git_repo"]
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    subprocess.run(["git", "clone", "--quiet", url, str(dest)], check=True)
+    subprocess.run(["git", "-C", str(dest), "checkout", "--quiet", SMARTBUGS_COMMIT], check=True)
+    return dest
 
-    with open(vulnerabilities_file, "r", encoding="utf-8") as f:
-        vuln_data = json.load(f)
 
-    gold_records = []
-    category_counts = {}
-    pragma_versions = {}
+def _marker_consistency(raw_lines: List[str], vuln_lines: List[int]) -> int:
+    """Count annotated lines whose ``<yes> <report>`` marker is on the line above
+    or on the same line (the SmartBugs convention). Used only as a sanity check."""
+    ok = 0
+    for ln in vuln_lines:
+        window = raw_lines[max(0, ln - 2):ln]  # line above and the line itself
+        if any("<yes>" in w and "<report>" in w for w in window):
+            ok += 1
+    return ok
 
-    for item in vuln_data:
-        contract_path = os.path.join(smartbugs_dir, item["path"])
-        if not os.path.exists(contract_path):
-            continue
 
-        with open(contract_path, "r", encoding="utf-8", errors="replace") as cf:
-            raw_source = cf.read()
+def build_smartbugs_gold(smartbugs_dir: Path | None = None) -> Dict[str, Any]:
+    smartbugs_dir = ensure_smartbugs(smartbugs_dir)
+    vulns = pd.read_json(smartbugs_dir / "vulnerabilities.json")
+    icse69 = {
+        line.strip().lstrip("./")
+        for line in (smartbugs_dir / "ICSE2020_curated_69.txt").read_text(encoding="utf-8").splitlines()
+        if line.strip().endswith(".sol")
+    }
 
-        # Clean source using line-preserving state machine
-        clean_code = clean_source(raw_source)
+    records: List[Dict[str, Any]] = []
+    counts: Dict[str, Counter] = defaultdict(Counter)
+    pragmas: Counter = Counter()
+    marker_ok = marker_total = 0
 
-        # Safety verification: no leakage of annotations
-        for forbidden in ["@vulnerable_at_lines", "<yes>", "<report>"]:
-            if forbidden in clean_code:
-                # Extra pass to strip any residual inline tags
-                clean_code = clean_code.replace(forbidden, " " * len(forbidden))
+    for item in vulns.to_dict("records"):
+        raw = (smartbugs_dir / item["path"]).read_text(encoding="utf-8", errors="replace")
+        clean = clean_source(raw)
+        leaked = [m for m in LEAK_MARKERS if m in clean]
+        if leaked:
+            raise AssertionError(f"annotation marker(s) {leaked} survived cleaning in {item['path']}")
+        if count_lines(clean) != count_lines(raw):
+            raise AssertionError(f"line count changed while cleaning {item['path']}")
 
-        # Extract pragma version if present
-        pragma_match = re.search(r'pragma\s+solidity\s+([^;]+);', raw_source)
-        pragma_str = pragma_match.group(1).strip() if pragma_match else item.get("pragma", "unknown")
-        pragma_versions[pragma_str] = pragma_versions.get(pragma_str, 0) + 1
+        by_cat: Dict[str, List[int]] = defaultdict(list)
+        for v in item["vulnerabilities"]:
+            by_cat[v["category"]].extend(int(x) for x in v["lines"])
+        categories = sorted(by_cat)
+        all_lines = sorted({ln for lines in by_cat.values() for ln in lines})
+        n_lines = count_lines(raw)
+        if any(ln < 1 or ln > n_lines for ln in all_lines):
+            raise AssertionError(f"annotated line outside file in {item['path']}")
 
-        # Combine vulnerable lines and primary category
-        all_vuln_lines = set()
-        categories = set()
-        for v in item.get("vulnerabilities", []):
-            cat = v.get("category", "other")
-            categories.add(cat)
-            lines = v.get("lines", [])
-            for ln in lines:
-                all_vuln_lines.add(int(ln))
+        raw_lines = split_lines(raw)
+        marker_ok += _marker_consistency(raw_lines, all_lines)
+        marker_total += len(all_lines)
 
-        primary_cat = sorted(list(categories))[0] if categories else "clean"
-        sorted_lines = sorted(list(all_vuln_lines))
-
-        record = {
-            "id": item["name"],
+        m = _PRAGMA.search(clean)
+        pragma = m.group(1).strip() if m else "none"
+        pragmas[pragma] += 1
+        records.append({
+            "id": item["path"].replace("dataset/", "", 1),
+            "name": item["name"],
             "path": item["path"],
-            "category": primary_cat,
-            "categories": sorted(list(categories)),
-            "pragma": pragma_str,
-            "source_raw_lines": len(raw_source.splitlines()),
-            "source_clean_lines": len(clean_code.splitlines()),
-            "source_clean": clean_code,
-            "vulnerable_lines": sorted_lines
-        }
-        gold_records.append(record)
+            "category": categories[0],          # SmartBugs has one category per file
+            "categories": categories,
+            "vulnerable_lines": all_lines,
+            "lines_by_category": {c: sorted(set(v)) for c, v in by_cat.items()},
+            "n_vulnerabilities": len(item["vulnerabilities"]),
+            "pragma": pragma,
+            "compiled_version": str(item.get("pragma", "")),
+            "n_lines": n_lines,
+            "icse2020_69": item["path"] in icse69,
+            "source_clean": clean,
+        })
+        for c in categories:
+            counts[c]["contracts"] += 1
+            counts[c]["annotated_vulnerabilities"] += sum(
+                1 for v in item["vulnerabilities"] if v["category"] == c)
+            counts[c]["annotated_lines"] += len(set(by_cat[c]))
 
-        # Track category statistics
-        for cat in (categories if categories else ["clean"]):
-            if cat not in category_counts:
-                category_counts[cat] = {
-                    "contracts": 0,
-                    "total_vuln_lines": 0
-                }
-            category_counts[cat]["contracts"] += 1
-            category_counts[cat]["total_vuln_lines"] += len(sorted_lines)
+    gold = pd.DataFrame(records).sort_values("id").reset_index(drop=True)
+    out = path("gold_dir") / "smartbugs_gold.parquet"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    gold.to_parquet(out, index=False)
 
-    # Save JSON fallback format
-    os.makedirs(os.path.dirname(output_json), exist_ok=True)
-    with open(output_json, "w", encoding="utf-8") as jf:
-        json.dump(gold_records, jf, indent=2)
-
-    # Save CSV counts report
-    os.makedirs(os.path.dirname(counts_csv), exist_ok=True)
-    with open(counts_csv, "w", encoding="utf-8") as cf:
-        cf.write("category,contracts,total_vulnerable_lines\n")
-        for cat, stats in sorted(category_counts.items()):
-            cf.write(f"{cat},{stats['contracts']},{stats['total_vuln_lines']}\n")
-
-    # Try writing Parquet if pyarrow/pandas is available
-    try:
-        import pandas as pd
-        df = pd.DataFrame(gold_records)
-        df.to_parquet(output_parquet, index=False)
-        parquet_saved = True
-    except ImportError:
-        parquet_saved = False
+    tables = path("tables_dir")
+    tables.mkdir(parents=True, exist_ok=True)
+    count_df = pd.DataFrame([{"category": c, **v} for c, v in sorted(counts.items())])
+    count_df.loc[len(count_df)] = {"category": "TOTAL", **count_df.drop(columns="category").sum().to_dict()}
+    count_df.to_csv(tables / "smartbugs_counts.csv", index=False)
+    pd.DataFrame(sorted(pragmas.items(), key=lambda x: -x[1]), columns=["pragma", "contracts"]).to_csv(
+        tables / "smartbugs_pragmas.csv", index=False)
 
     return {
-        "total_contracts": len(gold_records),
-        "categories": category_counts,
-        "pragma_versions": pragma_versions,
-        "parquet_saved": parquet_saved
+        "contracts": len(gold),
+        "annotated_vulnerabilities": int(gold["n_vulnerabilities"].sum()),
+        "annotated_lines": int(gold["vulnerable_lines"].map(len).sum()),
+        "marker_consistency": f"{marker_ok}/{marker_total}",
+        "icse2020_69_found": int(gold["icse2020_69"].sum()),
+        "path": str(out),
     }
 
 
 if __name__ == "__main__":
-    res = build_smartbugs_gold()
-    print(f"SmartBugs Gold Set Built: {res['total_contracts']} contracts processed.")
-    print(f"Parquet saved: {res['parquet_saved']}")
+    for k, v in build_smartbugs_gold().items():
+        print(f"{k}: {v}")
