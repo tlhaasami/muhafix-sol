@@ -1,252 +1,247 @@
 """
-Muhafiz.sol - Deduplication and Group-Aware Splits Module
-Phase 1: Work Package P1.5
-Owner: Talha Sami (24I-3118)
+Muhafiz.sol - de-duplication and group-aware splits (blueprint P1.5).
 
-Implements:
-1. Exact deduplication via SHA-256 of normalized tokens.
-2. Near-duplicate clustering using MinHash and Locality-Sensitive Hashing (LSH)
-   with Union-Find connected components (Jaccard threshold >= 0.80).
-3. Group-aware train/val/test splitting (70/15/15) preventing clone leakage.
-4. Independent random split generator for Experiment E2 (leakage ablation).
+1. Exact duplicates: SHA-256 of the normalised token string (identifiers
+   replaced by <ID>, so renamed copies count as exact duplicates). One
+   representative per hash is kept; the group size is remembered.
+2. Near duplicates: MinHash signatures of token 5-gram shingles (datasketch),
+   locality-sensitive hashing to find candidate pairs, the MinHash estimate of
+   Jaccard >= 0.8 to confirm a pair, and connected components (union-find) as
+   clone groups.
+3. Group-aware split: whole groups go to train / validation / test (70/15/15)
+   with a greedy multi-label stratification so every class has positives in
+   every split.
+4. Random split of identical sizes over the same contracts, for experiment E2.
+
+The functions are pure (lists/arrays in, arrays out) so they can be unit-tested
+on toy data; ``build_data`` wires them to the real dataset.
 """
 
+from __future__ import annotations
+
 import hashlib
-import random
-import json
-import os
-from typing import List, Dict, Set, Tuple, Any
-from src.preprocess import clean_source, normalise, tokenize
+from typing import Dict, Iterable, List, Sequence, Tuple
+
+import numpy as np
+
+from src.preprocess import normalise_identifiers
+
+SPLITS = ("train", "val", "test")
+MINHASH_SCHEME = "affine32"  # datasketch >= 2.0 requires the scheme to be explicit
 
 
+# --------------------------------------------------------------------------- #
+# Union-find
+# --------------------------------------------------------------------------- #
 class UnionFind:
-    def __init__(self):
-        self.parent = {}
+    """Array-based union-find with path halving and union by size."""
 
-    def find(self, x):
-        if x not in self.parent:
-            self.parent[x] = x
-            return x
-        if self.parent[x] != x:
-            self.parent[x] = self.find(self.parent[x])
-        return self.parent[x]
+    def __init__(self, n: int):
+        self.parent = np.arange(n, dtype=np.int64)
+        self.size = np.ones(n, dtype=np.int64)
 
-    def union(self, x, y):
-        root_x = self.find(x)
-        root_y = self.find(y)
-        if root_x != root_y:
-            self.parent[root_x] = root_y
+    def find(self, x: int) -> int:
+        parent = self.parent
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return int(x)
 
+    def union(self, a: int, b: int) -> None:
+        ra, rb = self.find(a), self.find(b)
+        if ra == rb:
+            return
+        if self.size[ra] < self.size[rb]:
+            ra, rb = rb, ra
+        self.parent[rb] = ra
+        self.size[ra] += self.size[rb]
 
-def compute_sha256(text: str) -> str:
-    """Compute SHA-256 hash of text."""
-    return hashlib.sha256(text.encode("utf-8")).hexdigest()
-
-
-def get_token_shingles(tokens: List[str], shingle_size: int = 5) -> Set[str]:
-    """Generate k-gram token shingles."""
-    if len(tokens) < shingle_size:
-        return {" ".join(tokens)} if tokens else set()
-    return {" ".join(tokens[i:i + shingle_size]) for i in range(len(tokens) - shingle_size + 1)}
+    def labels(self) -> np.ndarray:
+        return np.array([self.find(i) for i in range(len(self.parent))], dtype=np.int64)
 
 
-def jaccard_similarity(set_a: Set[str], set_b: Set[str]) -> float:
-    """Calculate exact Jaccard similarity between two sets."""
-    if not set_a and not set_b:
-        return 1.0
-    if not set_a or not set_b:
-        return 0.0
-    intersection = len(set_a.intersection(set_b))
-    union = len(set_a.union(set_b))
-    return intersection / union if union > 0 else 0.0
+# --------------------------------------------------------------------------- #
+# Hashing and MinHash
+# --------------------------------------------------------------------------- #
+def dedup_tokens(tokens: Sequence[str]) -> List[str]:
+    """Token view used for clone detection: identifiers anonymised."""
+    return normalise_identifiers(list(tokens))
 
 
-def cluster_contracts(
-    contracts: List[Dict[str, Any]],
-    jaccard_threshold: float = 0.80,
-    shingle_size: int = 5
-) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
+def exact_hash(tokens: Sequence[str]) -> str:
+    return hashlib.sha256(" ".join(tokens).encode("utf-8")).hexdigest()
+
+
+def shingles(tokens: Sequence[str], k: int = 5) -> List[bytes]:
+    """Set of token k-gram shingles, encoded as bytes for hashing."""
+    if not tokens:
+        return []
+    if len(tokens) < k:
+        return [" ".join(tokens).encode("utf-8")]
+    return list({" ".join(tokens[i:i + k]).encode("utf-8") for i in range(len(tokens) - k + 1)})
+
+
+def minhash_signature(tokens: Sequence[str], k: int = 5, num_perm: int = 128,
+                      seed: int = 1) -> np.ndarray:
+    """MinHash signature (datasketch) of the token k-gram shingle set."""
+    from datasketch import MinHash
+
+    m = MinHash(num_perm=num_perm, seed=seed, scheme=MINHASH_SCHEME)
+    sh = shingles(tokens, k)
+    if sh:
+        m.update_batch(sh)
+    return m.hashvalues.astype(np.uint64)
+
+
+def _signature_job(args: Tuple[List[str], int, int]) -> np.ndarray:
+    tokens, k, num_perm = args
+    return minhash_signature(tokens, k, num_perm)
+
+
+def minhash_signatures(token_lists: Iterable[Sequence[str]], k: int = 5, num_perm: int = 128,
+                       n_jobs: int = 1) -> np.ndarray:
+    """Signatures for many documents, optionally in parallel processes."""
+    jobs = [(list(t), k, num_perm) for t in token_lists]
+    if n_jobs == 1 or len(jobs) < 200:
+        sigs = [_signature_job(j) for j in jobs]
+    else:
+        from joblib import Parallel, delayed
+
+        sigs = Parallel(n_jobs=n_jobs, batch_size=64)(delayed(_signature_job)(j) for j in jobs)
+    return np.vstack(sigs) if sigs else np.zeros((0, num_perm), dtype=np.uint64)
+
+
+def near_duplicate_pairs(signatures: np.ndarray, threshold: float = 0.8) -> List[Tuple[int, int, float]]:
+    """Candidate pairs from MinHash LSH, confirmed by the signature Jaccard estimate."""
+    from datasketch import LeanMinHash, MinHashLSH
+
+    n, num_perm = signatures.shape
+    lsh = MinHashLSH(threshold=threshold, num_perm=num_perm)
+    lean = []
+    for i in range(n):
+        lm = LeanMinHash(seed=1, hashvalues=signatures[i], scheme=MINHASH_SCHEME)
+        lean.append(lm)
+        lsh.insert(i, lm)
+    pairs = []
+    for i in range(n):
+        for j in lsh.query(lean[i]):
+            if j > i:
+                est = float(np.mean(signatures[i] == signatures[j]))
+                if est >= threshold:
+                    pairs.append((i, int(j), est))
+    return pairs
+
+
+def cluster(exact_hashes: Sequence[str], signatures: np.ndarray, threshold: float = 0.8
+            ) -> Tuple[np.ndarray, Dict[str, float]]:
+    """Group documents: exact-hash groups first, then near-duplicate components.
+
+    ``signatures`` must be aligned with ``exact_hashes`` (one row per document).
+    Returns a dense group id per document and summary statistics.
     """
-    Perform exact and near-duplicate clustering.
-    Returns:
-    - contracts with added 'group_id' and 'is_representative'
-    - deduplication summary statistics
-    """
-    total_count = len(contracts)
-    if total_count == 0:
-        return [], {}
-
-    # Step 1: Preprocess and Exact Deduplication (SHA-256)
-    exact_hash_groups: Dict[str, List[int]] = {}
-    for idx, c in enumerate(contracts):
-        clean = clean_source(c.get("source_code", ""))
-        norm = normalise(clean)
-        toks = tokenize(norm)
-        c["_clean"] = clean
-        c["_norm"] = norm
-        c["_tokens"] = toks
-        c["_shingles"] = get_token_shingles(toks, shingle_size)
-        c["_hash"] = compute_sha256(" ".join(toks))
-
-        if c["_hash"] not in exact_hash_groups:
-            exact_hash_groups[c["_hash"]] = []
-        exact_hash_groups[c["_hash"]].append(idx)
-
-    # Representatives of exact hash groups
-    unique_indices = [indices[0] for indices in exact_hash_groups.values()]
-    exact_duplicates_count = total_count - len(unique_indices)
-
-    # Step 2: Near-duplicate clustering across representatives
-    uf = UnionFind()
-    for idx in range(total_count):
-        uf.find(idx)
-
-    # First merge exact duplicates into same component
-    for indices in exact_hash_groups.values():
-        first = indices[0]
-        for other in indices[1:]:
-            uf.union(first, other)
-
-    # MinHash LSH or pairwise candidate checking for near-duplicates
-    try:
-        from datasketch import MinHash, MinHashLSH
-        lsh = MinHashLSH(threshold=jaccard_threshold, num_perm=128)
-        minhashes = {}
-        for idx in unique_indices:
-            m = MinHash(num_perm=128)
-            for shingle in contracts[idx]["_shingles"]:
-                m.update(shingle.encode("utf-8"))
-            minhashes[idx] = m
-            lsh.insert(f"c_{idx}", m)
-
-        for idx in unique_indices:
-            candidates = lsh.query(minhashes[idx])
-            for cand in candidates:
-                cand_idx = int(cand.replace("c_", ""))
-                if cand_idx != idx:
-                    # Verify exact Jaccard similarity to prevent LSH false positives
-                    sim = jaccard_similarity(contracts[idx]["_shingles"], contracts[cand_idx]["_shingles"])
-                    if sim >= jaccard_threshold:
-                        uf.union(idx, cand_idx)
-    except ImportError:
-        # Fallback if datasketch is installing: pairwise Jaccard on representatives
-        for i in range(len(unique_indices)):
-            idx_i = unique_indices[i]
-            s_i = contracts[idx_i]["_shingles"]
-            for j in range(i + 1, len(unique_indices)):
-                idx_j = unique_indices[j]
-                s_j = contracts[idx_j]["_shingles"]
-                if jaccard_similarity(s_i, s_j) >= jaccard_threshold:
-                    uf.union(idx_i, idx_j)
-
-    # Step 3: Assign unified group_id
-    groups: Dict[int, List[int]] = {}
-    for idx in range(total_count):
-        root = uf.find(idx)
-        if root not in groups:
-            groups[root] = []
-        groups[root].append(idx)
-
-    largest_group_size = max(len(members) for members in groups.values()) if groups else 0
-
-    group_id_counter = 0
-    for root, members in sorted(groups.items(), key=lambda x: -len(x[1])):
-        for idx in members:
-            contracts[idx]["group_id"] = f"group_{group_id_counter}"
-            contracts[idx]["is_representative"] = (idx == members[0])
-        group_id_counter += 1
-
-    stats = {
-        "total_contracts": total_count,
-        "exact_duplicates": exact_duplicates_count,
-        "exact_duplicate_pct": (exact_duplicates_count / total_count * 100.0) if total_count else 0.0,
-        "total_groups": len(groups),
-        "largest_group_size": largest_group_size
-    }
-    return contracts, stats
-
-
-def create_group_aware_splits(
-    contracts: List[Dict[str, Any]],
-    seed: int = 42,
-    train_ratio: float = 0.70,
-    val_ratio: float = 0.15,
-    test_ratio: float = 0.15
-) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]], List[Dict[str, Any]], List[Dict[str, Any]]]:
-    """
-    Split contracts by group_id so all clones of a contract sit strictly in one split.
-    Also produces an un-grouped random split of identical size for Experiment E2.
-    """
-    rng = random.Random(seed)
-
-    # Group contracts by group_id
-    group_map: Dict[str, List[Dict[str, Any]]] = {}
-    for c in contracts:
-        gid = c["group_id"]
-        if gid not in group_map:
-            group_map[gid] = []
-        group_map[gid].append(c)
-
-    group_keys = sorted(list(group_map.keys()))
-    rng.shuffle(group_keys)
-
-    total_contracts = len(contracts)
-    target_train = int(total_contracts * train_ratio)
-    target_val = int(total_contracts * val_ratio)
-
-    train_set = []
-    val_set = []
-    test_set = []
-
-    # Distribute entire groups to train, val, test
-    train_groups_list = []
-    val_groups_list = []
-    test_groups_list = []
-
-    train_count = 0
-    val_count = 0
-
-    for gid in group_keys:
-        members = group_map[gid]
-        count = len(members)
-        if train_count + count <= target_train or not train_groups_list:
-            train_groups_list.append(gid)
-            train_count += count
-        elif val_count + count <= target_val or not val_groups_list:
-            val_groups_list.append(gid)
-            val_count += count
+    n = len(exact_hashes)
+    uf = UnionFind(n)
+    first: Dict[str, int] = {}
+    for i, h in enumerate(exact_hashes):
+        if h in first:
+            uf.union(first[h], i)
         else:
-            test_groups_list.append(gid)
+            first[h] = i
+    reps = np.array(sorted(first.values()), dtype=np.int64)
+    pairs = near_duplicate_pairs(signatures[reps], threshold) if len(reps) > 1 else []
+    for a, b, _ in pairs:
+        uf.union(int(reps[a]), int(reps[b]))
+    roots = uf.labels()
+    _, group = np.unique(roots, return_inverse=True)
+    sizes = np.bincount(group)
+    stats = {
+        "documents": n,
+        "unique_exact": int(len(reps)),
+        "exact_duplicates": int(n - len(reps)),
+        "exact_duplicate_pct": 100.0 * (n - len(reps)) / max(n, 1),
+        "near_duplicate_pairs": len(pairs),
+        "groups": int(len(sizes)),
+        "singleton_groups": int((sizes == 1).sum()),
+        "largest_group": int(sizes.max()) if len(sizes) else 0,
+        "docs_in_multi_member_groups_pct": 100.0 * sizes[sizes > 1].sum() / max(n, 1),
+    }
+    return group.astype(np.int64), stats
 
-    # Ensure all splits have at least one group if there are >= 3 groups
-    if not test_groups_list and len(group_keys) >= 3:
-        if len(val_groups_list) > 1:
-            test_groups_list.append(val_groups_list.pop())
-        elif len(train_groups_list) > 1:
-            test_groups_list.append(train_groups_list.pop())
 
-    train_set = [c for gid in train_groups_list for c in group_map[gid]]
-    val_set = [c for gid in val_groups_list for c in group_map[gid]]
-    test_set = [c for gid in test_groups_list for c in group_map[gid]]
+# --------------------------------------------------------------------------- #
+# Splitting
+# --------------------------------------------------------------------------- #
+def group_stratified_split(groups: np.ndarray, labels: np.ndarray,
+                           ratios: Tuple[float, float, float] = (0.70, 0.15, 0.15),
+                           seed: int = 42, max_eval_group_frac: float = 0.0) -> np.ndarray:
+    """Assign whole groups to train/val/test with greedy multi-label stratification.
 
-    # Build un-grouped random split for Experiment E2
-    all_contracts_shuffled = list(contracts)
-    rng_random = random.Random(seed)
-    rng_random.shuffle(all_contracts_shuffled)
-    n_train = len(train_set)
-    n_val = len(val_set)
+    Groups larger than ``max_eval_group_frac * n`` (giant template families) are
+    always put in train: otherwise a single family of ~1,000 near-identical
+    contracts can make up 10 % of the validation or test split, so thresholds get
+    tuned to - and scores measured on - one template instead of on new contracts.
 
-    random_train = all_contracts_shuffled[:n_train]
-    random_val = all_contracts_shuffled[n_train:n_train + n_val]
-    random_test = all_contracts_shuffled[n_train + n_val:]
+    The remaining groups are visited from the largest (then rarest-label) to the
+    smallest; each goes to the split with the largest remaining *deficit*,
+    measured on the group's labels (weighted by label rarity) and on the document
+    count. This is the iterative-stratification idea of Sechidis et al. (2011)
+    applied to groups. Returns split indices (0 = train, 1 = val, 2 = test).
+    """
+    rng = np.random.default_rng(seed)
+    labels = np.asarray(labels, dtype=np.float64)
+    n, c = labels.shape
+    n_groups = int(groups.max()) + 1 if n else 0
+    g_size = np.bincount(groups, minlength=n_groups).astype(np.float64)
+    g_lab = np.zeros((n_groups, c))
+    np.add.at(g_lab, groups, labels)
 
-    # Assertions for Acceptance Test A2 (No Group Leakage)
-    train_groups = {c["group_id"] for c in train_set}
-    val_groups = {c["group_id"] for c in val_set}
-    test_groups = {c["group_id"] for c in test_set}
+    r = np.asarray(ratios, dtype=np.float64) / np.sum(ratios)
+    want_docs = r * n
+    want_lab = np.outer(r, labels.sum(0))                      # (3, C)
+    rarity = 1.0 / np.maximum(labels.sum(0), 1.0)              # rare labels weigh more
+    have_docs = np.zeros(3)
+    have_lab = np.zeros((3, c))
 
-    assert train_groups.isdisjoint(val_groups), "Leakage detected between train and val groups!"
-    assert train_groups.isdisjoint(test_groups), "Leakage detected between train and test groups!"
-    assert val_groups.isdisjoint(test_groups), "Leakage detected between val and test groups!"
+    order = rng.permutation(n_groups)                          # random tie-break
+    rare_score = (g_lab > 0) @ rarity
+    order = order[np.lexsort((-rare_score[order], -g_size[order]))]
 
-    return train_set, val_set, test_set, random_test
+    assign = np.zeros(n_groups, dtype=np.int64)
+    if max_eval_group_frac > 0:
+        giant = g_size > max_eval_group_frac * n
+        have_docs[0] += g_size[giant].sum()
+        have_lab[0] += g_lab[giant].sum(0)
+        order = order[~giant[order]]
+    for g in order:
+        lab_def = ((want_lab - have_lab) / np.maximum(want_lab, 1.0)) @ (g_lab[g] * rarity)
+        doc_def = (want_docs - have_docs) / np.maximum(want_docs, 1.0)
+        # a split may not exceed its document target unless it is train
+        too_big = have_docs + g_size[g] > want_docs * 1.02
+        too_big[0] = False
+        score = lab_def + doc_def - 1e6 * too_big
+        s = int(np.argmax(score))
+        assign[g] = s
+        have_docs[s] += g_size[g]
+        have_lab[s] += g_lab[g]
+    return assign[groups]
+
+
+def random_split(n: int, sizes: Tuple[int, int, int], seed: int = 42) -> np.ndarray:
+    """Random split with exactly the given split sizes (experiment E2)."""
+    if sum(sizes) != n:
+        raise ValueError("sizes must add up to n")
+    perm = np.random.default_rng(seed).permutation(n)
+    out = np.empty(n, dtype=np.int64)
+    out[perm[:sizes[0]]] = 0
+    out[perm[sizes[0]:sizes[0] + sizes[1]]] = 1
+    out[perm[sizes[0] + sizes[1]:]] = 2
+    return out
+
+
+def leakage_rate(groups: np.ndarray, split: np.ndarray) -> float:
+    """Share of non-train documents whose clone group also appears in train."""
+    train_groups = set(groups[split == 0].tolist())
+    other = split != 0
+    if not other.any():
+        return 0.0
+    return float(np.mean([g in train_groups for g in groups[other]]))

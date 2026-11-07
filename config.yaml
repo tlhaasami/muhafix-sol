@@ -52,6 +52,9 @@ deduplication:
   # Number of contracts considered for near-duplicate search (P1.5 allows a
   # stratified subset when the full set is too slow). null = use everything.
   max_contracts: null
+  # Clone groups larger than this share of the pool always go to TRAIN, so no single
+  # template family dominates the validation or test split (see docs/dedup_report.md).
+  max_eval_group_fraction: 0.01
 
 features:
   ngram_range: [1, 3]
