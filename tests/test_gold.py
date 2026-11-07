@@ -1,54 +1,52 @@
 """
-Acceptance Test Suite for SmartBugs Gold Set (Work Package P1.3 and Test A1)
-Owner: Talha Sami (24I-3118)
+Tests for the SmartBugs gold set (blueprint P1.3, acceptance test A1).
 """
 
-import os
-import json
+from pathlib import Path
+
+import pandas as pd
 import pytest
 
-GOLD_JSON = "data/gold/smartbugs_gold.json"
+from src.config import path
+from src.preprocess import count_lines, split_lines
+
+GOLD = path("gold_dir") / "smartbugs_gold.parquet"
+MARKERS = ("@vulnerable_at_lines", "<yes>", "<report>", "@source", "@author")
 
 
 @pytest.fixture(scope="module")
-def gold_data():
-    if not os.path.exists(GOLD_JSON):
+def gold() -> pd.DataFrame:
+    if not GOLD.exists():
         from src.build_gold import build_smartbugs_gold
+
         build_smartbugs_gold()
-    with open(GOLD_JSON, "r", encoding="utf-8") as f:
-        return json.load(f)
+    return pd.read_parquet(GOLD)
 
 
-def test_gold_dataset_non_empty(gold_data):
-    assert len(gold_data) > 0, "SmartBugs gold set is empty"
-    assert len(gold_data) == 143, f"Expected 143 contracts, found {len(gold_data)}"
+def test_gold_counts_match_vulnerabilities_json(gold):
+    assert len(gold) == 143
+    assert int(gold["n_vulnerabilities"].sum()) == 207
+    assert gold["id"].is_unique
 
 
-def test_gold_required_fields(gold_data):
-    required_keys = {"id", "category", "source_clean", "vulnerable_lines"}
-    for item in gold_data:
-        assert required_keys.issubset(item.keys()), f"Item {item.get('id')} is missing required keys"
+def test_gold_required_columns(gold):
+    assert {"id", "category", "source_clean", "vulnerable_lines"} <= set(gold.columns)
+    assert gold["vulnerable_lines"].map(len).min() >= 1
 
 
-def test_a1_no_annotation_leakage(gold_data):
-    """
-    Acceptance Test A1: Zero matches for annotation markers in cleaned gold contracts.
-    """
-    forbidden_markers = ["@vulnerable_at_lines", "<yes>", "<report>"]
-    for item in gold_data:
-        clean_text = item["source_clean"]
-        for marker in forbidden_markers:
-            assert marker not in clean_text, (
-                f"Leakage detected in contract {item['id']}: found marker '{marker}'"
-            )
+def test_a1_no_annotation_leakage(gold):
+    """A1: no annotation marker survives cleaning (zero matches)."""
+    for text in gold["source_clean"]:
+        for marker in MARKERS:
+            assert marker not in text
 
 
-def test_gold_line_number_preservation(gold_data):
-    """
-    Ensure that line numbers were preserved so line-level annotations match correctly.
-    """
-    for item in gold_data:
-        assert item["source_raw_lines"] == item["source_clean_lines"], (
-            f"Line count mismatch in {item['id']}: "
-            f"raw={item['source_raw_lines']} vs clean={item['source_clean_lines']}"
-        )
+def test_annotated_lines_are_valid_and_line_count_preserved(gold):
+    root = path("smartbugs_dir")
+    for row in gold.itertuples():
+        raw = (root / row.path).read_text(encoding="utf-8", errors="replace")
+        assert count_lines(raw) == count_lines(row.source_clean) == row.n_lines
+        assert all(1 <= ln <= row.n_lines for ln in row.vulnerable_lines)
+        # the annotated code line itself is still present after cleaning
+        clean_lines = split_lines(row.source_clean)
+        assert any(clean_lines[ln - 1].strip() for ln in row.vulnerable_lines)
