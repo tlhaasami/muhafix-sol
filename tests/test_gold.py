@@ -17,9 +17,13 @@ MARKERS = ("@vulnerable_at_lines", "<yes>", "<report>", "@source", "@author")
 @pytest.fixture(scope="module")
 def gold() -> pd.DataFrame:
     if not GOLD.exists():
-        from src.build_gold import build_smartbugs_gold
+        # the gold parquet is committed; rebuilding it needs git and network access to GitHub
+        try:
+            from src.build_gold import build_smartbugs_gold
 
-        build_smartbugs_gold()
+            build_smartbugs_gold()
+        except Exception as exc:  # offline or no git
+            pytest.skip(f"SmartBugs gold set missing and could not be rebuilt: {exc}")
     return pd.read_parquet(GOLD)
 
 

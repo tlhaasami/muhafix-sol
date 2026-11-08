@@ -16,6 +16,7 @@ data/processed/*
 data/features/*
 !data/features/.gitkeep
 data/gold/*
+!data/gold/smartbugs_gold.parquet
 !data/gold/.gitkeep
 
 # Intermediate model files (the final model in models/ is committed on purpose)
