@@ -91,3 +91,9 @@ def fmt(v, nd: int = 3) -> str:
 
 def pct(v, nd: int = 1) -> str:
     return "-" if v is None or pd.isna(v) else f"{100 * v:.{nd}f}%"
+
+
+def model_lc(name: str) -> str:
+    """Model name for running text: 'Logistic regression' -> 'logistic regression', but 'MLP neural network' stays."""
+    first = name.split()[0] if name else ""
+    return name if first.isupper() else name[:1].lower() + name[1:]
