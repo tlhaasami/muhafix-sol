@@ -1,0 +1,6 @@
+ablation,setting,test_macro_pr_auc,test_macro_f1,smartbugs_recall_confirmed
+reference,"comments stripped, identifiers kept, n-grams 1-3",0.8365,0.7373,0.5165
+comments,comments KEPT on SmartBugs (annotations visible),0.8365,0.7373,0.5604
+identifiers,user identifiers -> <ID>,0.8589,0.7509,0.4945
+ngrams,n-grams 1-2,0.8432,0.7360,0.6923
+ngrams,n-grams 1-1 (bag of tokens),0.8183,0.6985,0.6044
