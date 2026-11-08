@@ -116,20 +116,25 @@ def explain_all(source: str, predictor, top_k: Optional[int] = None, model: Opti
         func_drop = base[None, :] - removed if len(valid) else np.zeros((0, len(predictor.classes)))
 
         # candidate lines: inside the top blocks per class (union), plus top-level code
-        cand: set = set()
+        # Priority order, so the line budget is spent where the score comes from: first the lines of every
+        # class's most important block, then every class's second block, and so on; top-level code last.
+        # (Cutting the candidates in file order would never score the main contract at the end of a long
+        # flattened file.)
         n_top = cfg["top_functions"]
-        for c in range(len(predictor.classes)):
-            order = np.argsort(-func_drop[:, c])[:n_top] if len(valid) else []
-            for j in order:
-                b = valid[int(j)][0]
-                cand.update(range(b.start_line, b.end_line + 1))
+        token_set = set(owner)
+        orders = [np.argsort(-func_drop[:, c], kind="mergesort")[:n_top] if len(valid) else []
+                  for c in range(len(predictor.classes))]
+        priority: List[int] = []
+        for rank in range(n_top):
+            for order in orders:
+                if rank < len(order):
+                    b = valid[int(order[rank])][0]
+                    priority.extend(ln for ln in range(b.start_line, b.end_line + 1) if ln in token_set)
         in_block = set()
         for b, _ in valid:
             in_block.update(range(b.start_line, b.end_line + 1))
-        token_lines = sorted(set(owner))
-        outside = [ln for ln in token_lines if ln not in in_block]
-        cand.update(outside)
-        cand = [ln for ln in token_lines if ln in cand][: cfg["max_lines"]]
+        priority.extend(ln for ln in sorted(token_set) if ln not in in_block)
+        cand = sorted(list(dict.fromkeys(priority))[: cfg["max_lines"]])
         line_spans = [_spans_for_lines(owner, [ln])[0] for ln in cand]
         _, removed_l = predictor.removal_probabilities(tokens, line_spans, model)
         line_drop = base[None, :] - removed_l if len(cand) else np.zeros((0, len(predictor.classes)))
