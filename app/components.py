@@ -14,6 +14,24 @@ import json
 from datetime import datetime
 from typing import Dict, List, Optional
 
+MAX_UPLOAD_MB = 2
+# Lines whose removal lowers the probability by less than this are not shown as "highlighted":
+# on a clean contract every drop is ~0 and ranking them would suggest a reason that is not there.
+MIN_SHOWN_DROP = 0.01
+
+
+class UploadTooLarge(ValueError):
+    pass
+
+
+def read_upload(upload, max_mb: float = MAX_UPLOAD_MB) -> str:
+    """Bytes of an uploaded file -> text, exactly as the app scans it (F1)."""
+    data = upload.getvalue()
+    if len(data) > max_mb * 1024 * 1024:
+        raise UploadTooLarge(f"The file is larger than {max_mb:g} MB.")
+    return data.decode("utf-8", errors="replace")
+
+
 # Plain-language meaning of every label family the model may use (blueprint 5).
 CLASS_INFO: Dict[str, Dict[str, str]] = {
     "reentrancy": {
