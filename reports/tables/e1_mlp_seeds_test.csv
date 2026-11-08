@@ -1,0 +1,6 @@
+seed,input,test_macro_pr_auc,test_macro_f1,test_macro_f2
+42,tfidf,0.8583,0.7459,0.8308
+43,tfidf,0.8581,0.7424,0.8300
+44,tfidf,0.8621,0.7577,0.8260
+mean,,0.8595,0.7487,0.8289
+std,,0.0019,0.0065,0.0021

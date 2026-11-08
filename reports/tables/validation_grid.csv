@@ -1,0 +1,18 @@
+family,params,val_macro_pr_auc,fit_seconds,source,val_pr_auc_0,val_pr_auc_1,val_pr_auc_2,val_pr_auc_3,val_pr_auc_4,val_pr_auc_5,val_pr_auc_6
+prior,{},0.20664,0.00000,fitted,0.14008,0.19992,0.03781,0.04693,0.32780,0.29480,0.39912
+logreg,"{""C"": 0.25}",0.74430,72.00000,"first full run log (08 Nov), not re-fitted",,,,,,,
+logreg,"{""C"": 1.0}",0.78740,94.00000,"first full run log (08 Nov), not re-fitted",,,,,,,
+logreg,"{""C"": 4.0}",0.81204,141.00000,model saved by first full run (08 Nov),0.73070,0.84261,0.77842,0.62857,0.87632,0.87666,0.95101
+tree,"{""max_depth"": 16, ""min_samples_leaf"": 5}",0.47500,1180.00000,"first full run log (08 Nov), not re-fitted",,,,,,,
+tree,"{""max_depth"": 16, ""min_samples_leaf"": 20}",0.48980,1026.00000,"first full run log (08 Nov), not re-fitted",,,,,,,
+tree,"{""max_depth"": 32, ""min_samples_leaf"": 5}",0.48410,1595.00000,"first full run log (08 Nov), not re-fitted",,,,,,,
+tree,"{""max_depth"": 32, ""min_samples_leaf"": 20}",0.51433,1212.00000,model saved by first full run (08 Nov),0.38371,0.49946,0.34280,0.23435,0.65919,0.68210,0.79867
+forest,"{""n_estimators"": 200, ""max_depth"": null, ""min_samples_leaf"": 1}",0.77134,5378.60000,fitted,0.69656,0.78558,0.76344,0.49105,0.84988,0.87468,0.93819
+forest,"{""n_estimators"": 200, ""max_depth"": 40, ""min_samples_leaf"": 2}",0.76440,1858.50000,fitted,0.67699,0.77956,0.75887,0.48026,0.84786,0.87146,0.93582
+knn,"{""k"": 5}",0.59752,0.60000,fitted,0.53717,0.58980,0.37497,0.28483,0.72963,0.77953,0.88670
+knn,"{""k"": 15}",0.61521,0.50000,fitted,0.55709,0.66484,0.35812,0.26880,0.75854,0.79924,0.89986
+knn,"{""k"": 31}",0.60317,0.30000,fitted,0.55770,0.65913,0.31226,0.25065,0.75193,0.79244,0.89808
+mlp,"{""input"": ""svd"", ""seed"": 42}",0.82029,806.90000,fitted,0.74302,0.81243,0.82860,0.64283,0.87387,0.89219,0.94909
+mlp,"{""input"": ""tfidf"", ""seed"": 42}",0.83721,7933.60000,fitted,0.74589,0.85001,0.83917,0.69583,0.88492,0.88946,0.95520
+mlp,"{""input"": ""tfidf"", ""seed"": 43}",0.83754,7899.00000,fitted,0.75238,0.85935,0.83168,0.68732,0.88264,0.89204,0.95737
+mlp,"{""input"": ""tfidf"", ""seed"": 44}",0.84607,8079.10000,fitted,0.76382,0.85924,0.84458,0.71670,0.88812,0.89394,0.95610

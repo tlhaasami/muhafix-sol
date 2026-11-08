@@ -1,0 +1,4 @@
+seed,val_macro_pr_auc,best_epoch,epochs_run
+42,0.83721,16,20
+43,0.83754,16,20
+44,0.84607,21,25
