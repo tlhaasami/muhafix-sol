@@ -241,6 +241,13 @@ def appendix(doc: Doc, f: Facts) -> None:
         ["Tested with representative inputs", "test split, SmartBugs, ten fixed inputs, fuzzing, pytest", "met"],
         ["Report chapters required by the statement", "chapters 1-9 of this report", "met"],
         ["Presentation slides", "reports/Muhafiz_sol_Slides.pptx (20 slides)", "met"],
+        ["Independent external test", "SmartBugs never used for training or tuning; 42 of 143 contracts overlap the "
+                                       "training pool, so E3/E3b also report the 51 + 18 clean contracts", "partly"],
+        ["Integrity: commit history per member, reviewed pull requests", "all commits were made from one account "
+                                       "(tlhaasami) in one local repository; no pull requests; contributions per member "
+                                       "are listed in chapter 9", "partly"],
+        ["One-command rebuild on another laptop (A6)", "python -m src.build_data run on the development laptop only",
+         "pending (team)"],
         ["Live demonstration", "rehearsal on the demo laptop", "pending (team)"],
         ["Every member can explain every part", "mock viva", "pending (team)"],
         ["One-command run on all three laptops", "verified on the development laptop", "pending (two laptops)"],
@@ -259,7 +266,54 @@ def appendix(doc: Doc, f: Facts) -> None:
         "Use 'Scan many files' to rank several contracts by risk. Remember: a low score is not a safety certificate.",
     ])
     doc.p("The model card (docs/model_card.md) and data card (docs/data_card.md) are part of the submission and are "
-          "regenerated from the same tables as this report.")
+          "regenerated from the same tables as this report; they are reproduced in Appendices C and D.")
+    for letter, title, name in (("C", "Model card", "model_card.md"), ("D", "Data card", "data_card.md")):
+        card = path("docs_dir") / name
+        if card.exists():
+            doc.page_break()
+            doc.h(f"Appendix {letter} - {title}")
+            _markdown(doc, card.read_text(encoding="utf-8"), title.lower())
+
+
+def _markdown(doc: "Doc", text: str, source: str = "card") -> None:
+    """Very small Markdown renderer for the two cards: headings, tables, bullets and paragraphs."""
+    lines, i = text.splitlines(), 0
+    while i < len(lines):
+        ln = lines[i].rstrip()
+        if not ln.strip():
+            i += 1
+            continue
+        if ln.startswith("#"):
+            level = len(ln) - len(ln.lstrip("#"))
+            if level > 1:  # the card's own title is replaced by the appendix heading
+                doc.h(ln.lstrip("#").strip(), 3)
+            i += 1
+        elif ln.lstrip().startswith("|"):
+            rows = []
+            while i < len(lines) and lines[i].lstrip().startswith("|"):
+                cells = [c.strip() for c in lines[i].strip().strip("|").split("|")]
+                if not all(set(c) <= set("-: ") for c in cells):
+                    rows.append([c.replace("**", "") for c in cells])
+                i += 1
+            if len(rows) > 1:
+                doc.table(pd.DataFrame(rows[1:], columns=rows[0]), f"From the {source}", font=8)
+        elif ln.lstrip().startswith(("* ", "- ")):
+            items = []
+            while i < len(lines) and lines[i].lstrip().startswith(("* ", "- ")):
+                item = lines[i].lstrip()[2:].strip()
+                i += 1
+                while i < len(lines) and lines[i].startswith("  ") and not lines[i].lstrip().startswith(("* ", "- ")):
+                    item += " " + lines[i].strip()
+                    i += 1
+                items.append(item.replace("**", "").replace("`", ""))
+            doc.bullets(items)
+        else:
+            para = [ln.strip()]
+            i += 1
+            while i < len(lines) and lines[i].strip() and not lines[i].lstrip().startswith(("#", "|", "* ", "- ")):
+                para.append(lines[i].strip())
+                i += 1
+            doc.p(" ".join(para).replace("**", "").replace("`", ""))
 
 
 def build_report() -> Path:

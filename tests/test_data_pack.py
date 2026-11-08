@@ -73,6 +73,30 @@ def test_a4_split_is_reproducible(ds, summary):
         assert h == summary["split_hashes"][s]
 
 
+@pytest.mark.skipif(__import__("os").environ.get("RUN_SLOW") != "1"
+                    or not (path("interim_dir") / "tokens.parquet").exists(),
+                    reason="slow (re-runs the de-duplication clustering, about 5 minutes); set RUN_SLOW=1")
+def test_a4_deduplication_groups_are_reproducible(ds):
+    """A4, build half: re-run exact + near-duplicate clustering from the stored token hashes and MinHash
+    signatures (same filters as src.build_data) and check that it yields the same clone groups."""
+    from src.splits import cluster
+
+    meta = pd.read_parquet(path("interim_dir") / "slither_contracts.parquet", columns=["address", "success"])
+    tok = pd.read_parquet(path("interim_dir") / "tokens.parquet",
+                          columns=["address", "n_tokens", "exact_hash", "signature"])
+    df = pd.concat([meta.reset_index(drop=True), tok.drop(columns="address").reset_index(drop=True)], axis=1)
+    df = df[~df["address"].duplicated(keep="first")]
+    df = df[df["success"] & (df["n_tokens"] >= 20)].reset_index(drop=True)
+    sigs = np.frombuffer(b"".join(df["signature"].tolist()), dtype=np.uint64).reshape(len(df), -1)
+    groups, _ = cluster(df["exact_hash"].tolist(), sigs, load_config()["deduplication"]["jaccard_threshold"])
+    df["new_group"] = groups
+    rep = df[~df["exact_hash"].duplicated(keep="first")].set_index("address")["new_group"]
+    pairs = pd.DataFrame({"old": ds["group"].to_numpy(), "new": rep.reindex(ds["address"]).to_numpy()})
+    assert pairs["new"].notna().all()
+    pairs = pairs.drop_duplicates()
+    assert pairs["old"].is_unique and pairs["new"].is_unique  # same partition, possibly renumbered
+
+
 def test_a5_every_class_has_positives_in_every_split(ds):
     ycols = [c for c in ds.columns if c.startswith("y_")]
     for col in ("split", "split_random"):

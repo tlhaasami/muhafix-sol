@@ -33,6 +33,8 @@ def build(deck: Deck, f: Facts) -> None:
     hr = f.t["e3b_hit_rate"]
     prim = e1[e1.key == f.primary].iloc[0]
     pooled = s3[s3.key == f.primary]["smartbugs_pooled_recall_confirmed"].iloc[0]
+    pooled_clean = s3[s3.key == f.primary]["smartbugs_pooled_recall_confirmed_no_overlap"].iloc[0]
+    n_clean = int(s3[s3.key == f.primary]["smartbugs_confirmed_contracts_no_overlap"].iloc[0])
     d = f.dedup
 
     # 1 Title -------------------------------------------------------------
@@ -98,7 +100,7 @@ def build(deck: Deck, f: Facts) -> None:
     deck.title(s, "Clean data first: duplicates would have faked our scores")
     deck.stat(s, I(0.6), I(1.7), I(3.9), f"{d['exact_duplicate_pct']:.0f} %", "of contracts are exact or renamed copies (removed)")
     deck.stat(s, I(4.75), I(1.7), I(3.9), f"{pct(d['random_split_leakage_rate'], 0)}",
-              "of test contracts would have a clone in training under a random split", RED)
+              "of validation and test contracts would have a clone in training under a random split", RED)
     deck.stat(s, I(8.9), I(1.7), I(3.9), "0 %", "under our clone-group split", TEAL)
     deck.bullets(s, ["Comments blanked, line numbers kept; literals -> <STR>/<NUM>",
                      "MinHash + LSH on token 5-grams (Jaccard >= 0.8) -> clone groups; giant template families -> train",
@@ -160,36 +162,40 @@ def build(deck: Deck, f: Facts) -> None:
                    I(0.6), I(1.5), I(8.2), I(5.2), "Test split (cluster-aware)", [NAVY, TEAL])
     deck.stat(s, I(9.2), I(1.8), I(3.6), f"{prim['macro_pr_auc']:.3f}", f"macro PR-AUC of the {MODEL_NAMES[f.primary]} "
               f"{prim['macro_pr_auc_ci']}")
-    deck.text(s, f"Prior baseline: {e1[e1.key == 'prior'].iloc[0]['macro_pr_auc']:.3f} PR-AUC but "
-                 f"{e1[e1.key == 'prior'].iloc[0]['label_accuracy']:.0%} label accuracy - why accuracy is not our metric.",
+    deck.text(s, f"Never flagging anything would score {1 - e1[e1.key == 'prior'].iloc[0]['label_accuracy']:.0%} label "
+                 "accuracy and find nothing - why accuracy is not our metric. Intervals: clone-group bootstrap.",
               I(9.2), I(4.0), I(3.6), I(2.0), 14, MUTED)
 
     # 13 E2 + E3 -----------------------------------------------------------
     s = deck.slide()
-    deck.title(s, "Leakage ablation and the independent SmartBugs check")
+    deck.title(s, "Clone leakage and the SmartBugs check")
     e2o = e2.set_index("key").loc[[k for k in order if k in set(e2.key)]]
     deck.bar_chart(s, [MODEL_NAMES[k].split(" ")[0] for k in e2o.index],
                    {"cluster split": e2o["cluster_test_macro_pr_auc"], "random split": e2o["random_test_macro_pr_auc"]},
                    I(0.6), I(1.5), I(6.2), I(5.0), "E2: macro PR-AUC, cluster vs random split", [NAVY, AMBER])
     conf = e3[e3.status == "confirmed"]
     deck.bar_chart(s, [c.replace("_", " ").replace("unchecked low level calls", "unchecked calls") for c in conf["smartbugs_category"]],
-                   {"recall": conf["recall"]}, I(7.0), I(1.5), I(5.8), I(3.7), "E3: SmartBugs recall (confirmed classes)",
-                   [TEAL], fmt="0%")
-    deck.text(s, f"Pooled recall {pct(pooled)} over {int(conf['contracts'].sum())} human-annotated contracts; "
-                 "wide intervals, strong domain shift (tiny Solidity 0.4 examples).", I(7.0), I(5.35), I(5.8), I(1.2),
-              13, MUTED)
+                   {"all contracts": conf["recall"], "no overlap with training": conf["recall_no_overlap"]},
+                   I(7.0), I(1.5), I(5.8), I(3.7), "E3: SmartBugs recall (confirmed classes)", [NAVY, TEAL], fmt="0%")
+    deck.text(s, f"Independent number: {pct(pooled_clean)} on the {n_clean} contracts with no copy in training "
+                 f"({pct(pooled)} on all {int(conf['contracts'].sum())}). Intervals are wide: "
+                 + ", ".join(f"{r.smartbugs_category.split('_')[0]} {pct(r.ci_low, 0)}-{pct(r.ci_high, 0)}"
+                             for r in conf.itertuples()) + ".", I(7.0), I(5.35), I(5.8), I(1.2), 12, MUTED)
 
     # 14 Explanation -----------------------------------------------------
     s = deck.slide()
     deck.title(s, "Explanation: hide a line, watch the score drop")
-    allr = hr.iloc[0]
+    allr = hr[hr["category"] == "confirmed classes"].iloc[0] if (hr["category"] == "confirmed classes").any() \
+        else hr.iloc[0]
     deck.card(s, I(0.6), I(1.7), I(6.0), I(4.8), "Two-stage occlusion",
               "1. Blank each function, measure the probability drop.\n2. Inside the top functions, blank each line.\n"
               "3. Highlight the lines with the biggest drops.\n\nExact fast trick: only n-grams touching the removed "
               "span change, so counts(full) - counts(L+S+R) + counts(L+R).", "E")
-    deck.stat(s, I(7.0), I(1.8), I(5.6), pct(allr["strict@3"], 0), f"of SmartBugs contracts: annotated line in the top 3 "
-              f"(random lines: {pct(allr['random@3'], 0)})")
-    deck.stat(s, I(7.0), I(3.9), I(5.6), pct(allr["relaxed@3"], 0), "top-3 line in the same function as the bug", AMBER)
+    deck.stat(s, I(7.0), I(1.8), I(5.6), pct(allr["strict@3"], 0),
+              f"of {int(allr['contracts'])} SmartBugs contracts in confirmed classes: annotated line in the top 3, "
+              f"95 % CI {allr['strict@3_ci']} (three random lines: {pct(allr['random@3'], 0)})")
+    deck.stat(s, I(7.0), I(3.9), I(5.6), pct(allr["relaxed@3"], 0),
+              f"top-3 line in the same function as the bug (random: {pct(allr['random_relaxed@3'], 0)})", AMBER)
 
     # 15 App -----------------------------------------------------------------
     s = deck.slide()
@@ -205,9 +211,15 @@ def build(deck: Deck, f: Facts) -> None:
     deck.title(s, "Testing: evidence, not claims")
     tj = path("docs_dir") / "test_evidence.json"
     tests = json.loads(tj.read_text()) if tj.exists() else {"total": 0, "passed": 0}
-    deck.stat(s, I(0.6), I(1.7), I(3.9), f"{tests['passed']}/{tests['total']}", "automated tests passing")
-    deck.stat(s, I(4.75), I(1.7), I(3.9), "A1-A6 B1-B6 C2-C5", "acceptance tests passed (C1 and C6 need the team's laptops)",
-              NAVY, size=26)
+    deck.stat(s, I(0.6), I(1.7), I(3.9), f"{tests['passed']}/{tests['total']}",
+              "automated tests passing" + (" (with RUN_SLOW=1)" if tests.get("run_slow") else ""))
+    acc = tests.get("acceptance", [])
+    n_pass = sum(a["status"] == "passed" for a in acc)
+    n_evid = sum(a["status"] == "see evidence" for a in acc)
+    n_team = sum(a["status"].startswith("partly") for a in acc)
+    deck.stat(s, I(4.75), I(1.7), I(3.9), f"{n_pass} + {n_evid} + {n_team}",
+              f"acceptance tests: {n_pass} passed automatically, {n_evid} shown by result tables, "
+              f"{n_team} need the team's laptops (A6, C1, C6)", NAVY, size=32)
     deck.stat(s, I(8.9), I(1.7), I(3.9), "10 + fuzz", "fixed inputs and random inputs: no crash", TEAL)
     deck.bullets(s, ["No annotation text and no clone group crosses splits (automatic tests)",
                      "Model frozen before test evaluation - the evaluation script checks the git tag",
@@ -248,7 +260,7 @@ def build(deck: Deck, f: Facts) -> None:
     s = deck.slide(dark=True)
     deck.text(s, "Conclusion", I(0.8), I(0.7), I(11.5), I(0.9), 40, WHITE, True, "Cambria")
     deck.bullets(s, [f"Working ML triage tool: {MODEL_NAMES[f.primary]} with {prim['macro_pr_auc']:.3f} macro PR-AUC on unseen families",
-                     f"Independent check: {pct(pooled)} recall on human-annotated SmartBugs (confirmed classes)",
+                     f"Independent check: {pct(pooled_clean)} recall on human-annotated SmartBugs contracts with no copy in training",
                      "Honest evaluation: clone-aware split, frozen model, leakage measured",
                      "Next: code-model embeddings, human labels for missing classes, cloud deployment"],
                  I(0.8), I(2.0), I(11.5), I(4.2), 20, WHITE)

@@ -82,7 +82,7 @@ Every class has positives in every split (acceptance test A5).
 | Licence | Apache-2.0 for the repository; each contract keeps its original licence |
 | Our counts | 143 contracts, 207 annotated vulnerabilities, 222 distinct annotated lines (the literature quotes about 143 / 208) |
 | ICSE 2020 subset | `ICSE2020_curated_69.txt` lists 68 unique paths (all present) |
-| Role | Testing only; never used for training, tuning or threshold selection |
+| Role | Testing only; never used for training, tuning or threshold selection. Note: 42 of the 143 contracts also occur (exactly or nearly) in Dataset A, found after the freeze (`reports/tables/gold_overlap.csv`); results are reported with and without them |
 | Leakage control | All comments are removed before any model sees a contract; the build fails if `@vulnerable_at_lines`, `<yes>` or `<report>` survive (acceptance test A1). 206 of 222 annotated lines carry a `<yes> <report>` marker on the line above; the other 16 belong to multi-line annotations whose marker sits a few lines higher. |
 
 | category | contracts | annotated_vulnerabilities | annotated_lines |
@@ -103,8 +103,10 @@ Every class has positives in every split (acceptance test A5).
 * **Weak labels.** Targets are Slither findings, not expert judgements; in-distribution scores measure agreement
   with Slither. SmartBugs (human annotations) is the independent check.
 * **Clone leakage.** 46.0% of contracts are exact (renamed) duplicates and many
-  more are near-duplicates; a random split would put 58.5% of test contracts next to a
-  clone in training. Measured explicitly in experiment E2.
+  more are near-duplicates; a random split would put 58.5% of validation and test
+  contracts next to a clone in training. Measured explicitly in experiment E2.
+* **Giant template families.** Clone groups larger than 1 % of the pool always go to training
+  (6 groups, 10,085 contracts), so they are never evaluated.
 * **Label conflicts.** 56 groups of identical (normalised) code carry
   different Slither labels - a direct measure of label noise (e.g. different compiler versions).
 * **Domain shift.** SmartBugs is 99.3% Solidity 0.4 and its median

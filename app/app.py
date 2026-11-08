@@ -34,7 +34,7 @@ SAMPLE_LABELS = {
     "05_tricky_safe_with_keywords.sol": "Tricky: safe vault that uses 'call' correctly",
     "06_tricky_renamed_reentrancy.sol": "Tricky: reentrancy hidden behind odd names",
 }
-MAX_UPLOAD_MB = 2
+MAX_UPLOAD_MB = ui.MAX_UPLOAD_MB
 
 st.set_page_config(page_title="Muhafiz.sol - smart contract checker", page_icon="🛡️", layout="wide")
 
@@ -66,10 +66,18 @@ def run_scan(source: str, name: str, model: str, scale: float):
 
 
 def read_upload(upload) -> str:
-    data = upload.getvalue()
-    if len(data) > MAX_UPLOAD_MB * 1024 * 1024:
-        raise InputError(f"The file is larger than {MAX_UPLOAD_MB} MB.")
-    return data.decode("utf-8", errors="replace")
+    try:
+        return ui.read_upload(upload, MAX_UPLOAD_MB)
+    except ui.UploadTooLarge as exc:
+        raise InputError(str(exc)) from exc
+
+
+def _use_text():
+    st.session_state["input_source"] = "text"
+
+
+def _use_upload():
+    st.session_state["input_source"] = "upload"
 
 
 # --------------------------------------------------------------------------- #
@@ -79,14 +87,18 @@ predictor, mock_reason = get_predictor()
 
 # Deep links for the demo: ?sample=02_reentrancy_bank.sol&scan=1 loads (and scans) a sample.
 qp = st.query_params
-if qp.get("sample") in SAMPLE_LABELS and st.session_state.get("deep_link_done") != qp.get("sample"):
-    st.session_state["deep_link_done"] = qp["sample"]
-    st.session_state["code"] = (SAMPLES / qp["sample"]).read_text(encoding="utf-8")
-    st.session_state["source_name"] = qp["sample"]
-    st.session_state["loaded_sample"] = qp["sample"]
+link_sample = qp.get("sample")
+if link_sample and not link_sample.endswith(".sol"):
+    link_sample += ".sol"  # ?sample=02_reentrancy_bank works as well as ?sample=02_reentrancy_bank.sol
+if link_sample in SAMPLE_LABELS and st.session_state.get("deep_link_done") != link_sample:
+    st.session_state["deep_link_done"] = link_sample
+    st.session_state["code"] = (SAMPLES / link_sample).read_text(encoding="utf-8")
+    st.session_state["source_name"] = link_sample
+    st.session_state["loaded_sample"] = link_sample
+    st.session_state["input_source"] = "text"
     if qp.get("scan") == "1":
         try:
-            run_scan(st.session_state["code"], qp["sample"], predictor.default_model, 1.0)
+            run_scan(st.session_state["code"], link_sample, predictor.default_model, 1.0)
         except InputError:
             pass
 
@@ -100,6 +112,7 @@ with st.sidebar:
         st.session_state["code"] = (SAMPLES / sample).read_text(encoding="utf-8")
         st.session_state["loaded_sample"] = sample
         st.session_state["source_name"] = sample
+        st.session_state["input_source"] = "text"
     model_names = {"mlp": "Neural network (MLP)", "logreg": "Logistic regression", "forest": "Random forest",
                    "knn": "Nearest neighbours", "tree": "Decision tree", "mock": "Mock"}
     model = st.radio("Model", predictor.available_models, index=predictor.available_models.index(
@@ -133,16 +146,19 @@ tab_scan, tab_metrics, tab_batch, tab_about = st.tabs(
 with tab_scan:
     left, right = st.columns([3, 2])
     with left:
-        st.text_area("Solidity source code", key="code", height=260,
+        st.text_area("Solidity source code", key="code", height=260, on_change=_use_text,
                      placeholder="pragma solidity ^0.8.0;\ncontract MyContract { ... }")
     with right:
-        upload = st.file_uploader("...or upload a .sol file", type=["sol", "txt"],
+        upload = st.file_uploader("...or upload a .sol file", type=["sol", "txt"], on_change=_use_upload,
                                   help=f"Up to {MAX_UPLOAD_MB} MB. A single flattened file works best.")
-        st.markdown(" ")
+        use_upload = upload is not None and st.session_state.get("input_source", "upload") == "upload"
+        if upload is not None:
+            st.caption(f"Scan will use the uploaded file **{upload.name}**." if use_upload else
+                       "Scan will use the code in the text box (chosen after the upload).")
         scan = st.button("🔍 Scan", type="primary", width="stretch")
     if scan:
         try:
-            if upload is not None:
+            if use_upload:
                 source, name = read_upload(upload), upload.name
             else:
                 source = st.session_state.get("code", "")
@@ -177,7 +193,8 @@ with tab_scan:
         info = ui.CLASS_INFO.get(chosen, {})
         if info:
             st.info(f"**{info['title']}** — {info['plain']}\n\n*Typical fix:* {info['fix']}")
-        items = scan_state["explanation"].get("lines", {}).get(chosen, [])
+        items = [it for it in scan_state["explanation"].get("lines", {}).get(chosen, [])
+                 if it["score"] >= ui.MIN_SHOWN_DROP]
         if items:
             st.markdown("Highlighted = the lines that push this score up the most "
                         "(removing them lowers the probability by the amount shown).")
@@ -221,8 +238,8 @@ with tab_scan:
 with tab_metrics:
     tables = ROOT / "reports" / "tables"
     st.markdown("### How good is the model?")
-    st.markdown("All numbers below come from data the model **never saw while it was being built**. "
-                "They are the same numbers as in the project report.")
+    st.markdown("The test-split numbers come from contracts kept out of training and tuning, with near-copies "
+                "kept apart. They are the same numbers as in the project report.")
     e1 = tables / "e1_test_summary.csv"
     if e1.exists():
         df = pd.read_csv(e1)
@@ -236,7 +253,9 @@ with tab_metrics:
     e3 = tables / "e3_smartbugs_recall.csv"
     if e3.exists():
         st.markdown("**Independent check on SmartBugs Curated** (contracts annotated by humans; recall = share "
-                    "of known-vulnerable contracts that were flagged, with 95% bootstrap interval):")
+                    "of known-vulnerable contracts that were flagged, with 95% bootstrap interval). 42 of the 143 "
+                    "SmartBugs contracts also occur in the training data, so recall is shown for all contracts and "
+                    "for those with no overlap (the honest number):")
         st.dataframe(pd.read_csv(e3), hide_index=True, width="stretch")
     e3b = tables / "e3b_hit_rate.csv"
     if e3b.exists():

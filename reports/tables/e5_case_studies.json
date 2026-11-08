@@ -10,6 +10,7 @@
       22,
       12
     ],
+    "code_lines": 11,
     "vulnerable_lines": [
       12,
       18,
@@ -38,6 +39,7 @@
       27,
       11
     ],
+    "code_lines": 15,
     "vulnerable_lines": [
       20,
       27
@@ -54,68 +56,75 @@
   },
   {
     "kind": "success",
-    "id": "reentrancy/0x7541b76cb60f4c60af330c208b0623b7f54bf615.sol",
-    "class": "reentrancy",
-    "probability": 0.9975001215934753,
+    "id": "unchecked_low_level_calls/0x663e4229142a27f00bafb5d087e1e730648314c3.sol",
+    "class": "unchecked-calls",
+    "probability": 0.9996953010559082,
     "flagged": true,
     "top_lines": [
-      29,
-      38,
-      25
+      1152,
+      425,
+      749
     ],
+    "code_lines": 1254,
     "vulnerable_lines": [
-      29
+      1152,
+      1496,
+      2467
     ],
     "top_line_text": [
-      "if(msg.sender.call.value(_am)())",
-      "public",
-      "var acc = Acc[msg.sender];"
+      "msg.sender.send(autoBirthFee);",
+      "{",
+      "for(; _len >= 32; _len -= 32) {"
     ],
     "vulnerable_text": [
-      "if(msg.sender.call.value(_am)())"
+      "msg.sender.send(autoBirthFee);",
+      "bool res = nftAddress.send(this.balance);",
+      "cfoAddress.send(balance - subtractFees);"
     ]
   },
   {
     "kind": "success",
-    "id": "reentrancy/0x7b368c4e805c3870b6c49a3f1f49f69af8662cf3.sol",
+    "id": "reentrancy/etherstore.sol",
     "class": "reentrancy",
-    "probability": 0.9975001215934753,
+    "probability": 0.9969539642333984,
     "flagged": true,
     "top_lines": [
-      29,
-      38,
-      25
+      27,
+      16,
+      14
     ],
+    "code_lines": 17,
     "vulnerable_lines": [
-      29
+      27
     ],
     "top_line_text": [
-      "if(msg.sender.call.value(_am)())",
-      "public",
-      "var acc = Acc[msg.sender];"
+      "require(msg.sender.call.value(_weiToWithdraw)());",
+      "function depositFunds() public payable {",
+      "mapping(address => uint256) public balances;"
     ],
     "vulnerable_text": [
-      "if(msg.sender.call.value(_am)())"
+      "require(msg.sender.call.value(_weiToWithdraw)());"
     ]
   },
   {
     "kind": "success",
-    "id": "reentrancy/0xf015c35649c82f5467c9c74b7f28ee67665aad68.sol",
+    "id": "reentrancy/0x7a8721a9d64c74da899424c1b52acbf58ddc9782.sol",
     "class": "reentrancy",
-    "probability": 0.9975001215934753,
+    "probability": 0.996550440788269,
     "flagged": true,
     "top_lines": [
-      29,
-      38,
-      25
+      52,
+      37,
+      19
     ],
+    "code_lines": 64,
     "vulnerable_lines": [
-      29
+      52
     ],
     "top_line_text": [
       "if(msg.sender.call.value(_am)())",
       "public",
-      "var acc = Acc[msg.sender];"
+      "require(tx.origin == owner);"
     ],
     "vulnerable_text": [
       "if(msg.sender.call.value(_am)())"
@@ -132,6 +141,7 @@
       24,
       20
     ],
+    "code_lines": 25,
     "vulnerable_lines": [
       35
     ],
@@ -153,6 +163,7 @@
     "top_lines": [
       12
     ],
+    "code_lines": 6,
     "vulnerable_lines": [
       12
     ],
@@ -174,6 +185,7 @@
       55,
       42
     ],
+    "code_lines": 36,
     "vulnerable_lines": [
       38,
       42
@@ -190,52 +202,50 @@
   },
   {
     "kind": "failure",
-    "id": "reentrancy/spank_chain_payment.sol",
+    "id": "reentrancy/modifier_reentrancy.sol",
     "class": "reentrancy",
-    "probability": 0.9955175518989563,
-    "flagged": true,
+    "probability": 0.002729084575548768,
+    "flagged": false,
     "top_lines": [
-      244,
-      223,
-      180
+      46,
+      21,
+      39
     ],
+    "code_lines": 34,
     "vulnerable_lines": [
-      426,
-      430
+      15
     ],
     "top_line_text": [
-      "balances[msg.sender] = _initialAmount;",
-      "contract HumanStandardToken is StandardToken {",
-      "contract StandardToken is Token {"
+      "function call(address token) public{",
+      "require(keccak256(abi.encodePacked(\"Nu Token\")) == Bank(msg.sender).supportsToken());",
+      "function supportsToken() external returns(bytes32){"
     ],
     "vulnerable_text": [
-      "Channels[_lcID].partyAddresses[0].transfer(Channels[_lcID].ethBalances[0]);",
-      "require(Channels[_lcID].token.transfer(Channels[_lcID].partyAddresses[0], Channels[_lcID].erc20Balances[0]),\"CreateChannel: token transfer failure\");"
+      "function airDrop() hasNoBalance supportsToken  public{"
     ]
   },
   {
     "kind": "failure",
-    "id": "unchecked_low_level_calls/0x19cf8481ea15427a98ba3cdd6d9e14690011ab10.sol",
-    "class": "unchecked-calls",
-    "probability": 0.38628947734832764,
+    "id": "reentrancy/reentrancy_bonus.sol",
+    "class": "reentrancy",
+    "probability": 0.5653636455535889,
     "flagged": true,
     "top_lines": [
-      374,
-      346,
-      326
+      19,
+      26,
+      29
     ],
+    "code_lines": 18,
     "vulnerable_lines": [
-      439,
-      465
+      28
     ],
     "top_line_text": [
-      "t.coinContract.transfer(receiver, amount);",
-      "UpdatedTokenInformation(name, symbol);",
-      "function () payable  public {"
+      "(bool success, ) = recipient.call.value(amountToWithdraw)(\"\");",
+      "rewardsForA[recipient] += 100;",
+      "claimedBonus[recipient] = true;"
     ],
     "vulnerable_text": [
-      "owner.send(this.balance - SubX);",
-      "owner.send(this.balance);"
+      "withdrawReward(recipient);"
     ]
   }
 ]

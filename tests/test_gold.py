@@ -17,9 +17,13 @@ MARKERS = ("@vulnerable_at_lines", "<yes>", "<report>", "@source", "@author")
 @pytest.fixture(scope="module")
 def gold() -> pd.DataFrame:
     if not GOLD.exists():
-        from src.build_gold import build_smartbugs_gold
+        # the gold parquet is committed; rebuilding it needs git and network access to GitHub
+        try:
+            from src.build_gold import build_smartbugs_gold
 
-        build_smartbugs_gold()
+            build_smartbugs_gold()
+        except Exception as exc:  # offline or no git
+            pytest.skip(f"SmartBugs gold set missing and could not be rebuilt: {exc}")
     return pd.read_parquet(GOLD)
 
 
@@ -43,6 +47,8 @@ def test_a1_no_annotation_leakage(gold):
 
 def test_annotated_lines_are_valid_and_line_count_preserved(gold):
     root = path("smartbugs_dir")
+    if not root.exists():
+        pytest.skip("raw SmartBugs clone not present (python -m src.build_gold fetches it)")
     for row in gold.itertuples():
         raw = (root / row.path).read_text(encoding="utf-8", errors="replace")
         assert count_lines(raw) == count_lines(row.source_clean) == row.n_lines

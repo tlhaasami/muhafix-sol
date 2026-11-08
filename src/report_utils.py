@@ -39,7 +39,7 @@ class Facts:
                      "smartbugs_pragmas", "validation_grid", "model_selection_val", "thresholds_val", "mlp_seeds",
                      "e1_test_summary", "e1_mlp_seeds_test", "e2_leakage", "e3_smartbugs_recall",
                      "e3_smartbugs_all_models", "e3_summary", "e3b_hit_rate", "e4_ablations", "e5_latency",
-                     "e5_error_slices"]:
+                     "e5_error_slices", "e1_calibration_primary", "gold_overlap", "e2_random_test_results"]:
             t[name] = _read(f"{name}.csv")
         self.t = t
         pc = path("tables_dir") / f"e1_per_class_{self.primary}.csv"
@@ -61,6 +61,16 @@ class Facts:
     @property
     def sizes(self) -> Dict[str, int]:
         return self.summary["split_sizes"]
+
+    def prevalence(self, cls: str) -> Dict[str, float]:
+        """Prevalence of one class per cluster-aware split (label_distribution.csv)."""
+        ld = self.t["label_distribution"]
+        ld = ld[(ld["split_type"] == "cluster") & (ld["class"] == cls)]
+        return {r.split: float(r.prevalence) for r in ld.itertuples()}
+
+    def frozen_thresholds(self) -> Dict[str, float]:
+        """Thresholds of the primary model straight from thresholds.json (round once, from the source)."""
+        return dict(zip(self.classes, self.thresholds["all_models"][self.primary]["thresholds"]))
 
     def e1(self, key: str) -> pd.Series:
         df = self.t["e1_test_summary"]

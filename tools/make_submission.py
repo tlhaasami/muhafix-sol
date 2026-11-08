@@ -61,7 +61,14 @@ def verify(zip_path: Path) -> None:
         print(res.stdout.strip() or res.stderr.strip())
         if res.returncode != 0:
             raise SystemExit("verification failed")
-        print("verification passed: the unzipped copy loads the model and scans contracts")
+        # the test suite must pass in the unzipped copy too (tests that need the large data skip themselves)
+        tests = subprocess.run([sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider"], cwd=root,
+                               capture_output=True, text=True, env=env)
+        print(tests.stdout.strip().splitlines()[-1] if tests.stdout.strip() else tests.stderr.strip())
+        if tests.returncode != 0:
+            print(tests.stdout[-3000:])
+            raise SystemExit("verification failed: tests fail in the unzipped copy")
+        print("verification passed: the unzipped copy loads the model, scans contracts and passes its tests")
 
 
 if __name__ == "__main__":

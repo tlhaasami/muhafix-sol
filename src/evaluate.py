@@ -121,12 +121,24 @@ def summary_metrics(y_true: np.ndarray, y_prob: np.ndarray, thresholds: Sequence
 # bootstrap
 # --------------------------------------------------------------------------- #
 def bootstrap_ci(stat: Callable[[np.ndarray], float], n: int, iterations: int = 1000,
-                 alpha: float = 0.05, seed: int = 42) -> Tuple[float, float]:
-    """Percentile bootstrap interval of ``stat(idx)`` where idx resamples 0..n-1."""
+                 alpha: float = 0.05, seed: int = 42, groups: Optional[Sequence] = None) -> Tuple[float, float]:
+    """Percentile bootstrap interval of ``stat(idx)`` where idx resamples 0..n-1.
+
+    With ``groups`` (one id per item) whole groups are resampled (cluster bootstrap), so near-duplicate
+    contracts that share a clone group are not treated as independent evidence."""
     rng = np.random.default_rng(seed)
+    members = None
+    if groups is not None:
+        _, inv = np.unique(np.asarray(groups), return_inverse=True)
+        order = np.argsort(inv, kind="mergesort")
+        members = np.split(order, np.flatnonzero(np.diff(inv[order])) + 1)
     vals = []
     for _ in range(iterations):
-        idx = rng.integers(0, n, n)
+        if members is None:
+            idx = rng.integers(0, n, n)
+        else:
+            pick = rng.integers(0, len(members), len(members))
+            idx = np.concatenate([members[g] for g in pick])
         v = stat(idx)
         if v is not None and np.isfinite(v):
             vals.append(v)
@@ -147,14 +159,15 @@ def recall_with_ci(y_true_col: np.ndarray, y_pred_col: np.ndarray, iterations: i
 
 
 def metric_ci(y_true: np.ndarray, y_prob: np.ndarray, thresholds: Sequence[float],
-              key: str, iterations: int = 1000, seed: int = 42) -> Tuple[float, float]:
-    """Bootstrap interval for a summary metric (e.g. 'macro_f1') over contracts."""
+              key: str, iterations: int = 1000, seed: int = 42,
+              groups: Optional[Sequence] = None) -> Tuple[float, float]:
+    """Bootstrap interval for a summary metric (e.g. 'macro_f1') over contracts (or clone groups)."""
     y_true, y_prob = np.asarray(y_true), np.asarray(y_prob)
 
     def stat(idx):
         return summary_metrics(y_true[idx], y_prob[idx], thresholds)[key]
 
-    return bootstrap_ci(stat, len(y_true), iterations, seed=seed)
+    return bootstrap_ci(stat, len(y_true), iterations, seed=seed, groups=groups)
 
 
 # --------------------------------------------------------------------------- #

@@ -76,19 +76,20 @@ def chapter1(doc, f: Facts) -> None:
           "balance is updated.")
     doc.h("1.2 Real-world justification", 2)
     doc.p("Chainalysis reports more than US$3.4 billion in cryptocurrency stolen between January and early December "
-          "2025, and CertiK's Hack3d report for 2025 records US$3.35 billion lost to hacks, scams and exploits across "
-          "310 incidents, about US$1.70 billion of it on Ethereum. An honest qualification matters: most of the 2025 "
-          "dollar value came from a few infrastructure and key-compromise attacks, not from contract-code bugs. TRM "
-          "Labs figures, as summarised by a secondary source, attribute about 12 % of stolen value (52 incidents) to "
-          "code exploits. Contract-code flaws are therefore a smaller share of the money lost, but a recurring and "
-          "preventable one - exactly the category a pre-deployment check addresses. (The secondary figures must be "
-          "re-checked against the primary reports before submission; risk R11.)")
-    doc.p("Pakistan's Parliament passed the Virtual Assets Act 2026 on 6 March 2026, establishing the Pakistan Virtual "
-          "Assets Regulatory Authority (PVARA) to license virtual-asset service providers and give regulatory clarity "
-          "for token launches and DeFi protocols; the same report places Pakistan third in Chainalysis's 2025 adoption "
-          "index. A newly licensed sector creates demand from small local teams for low-cost screening. Muhafiz.sol is "
-          "a student research tool: we do not claim that PVARA requires contract scanning, and it is not a compliance "
-          "product.")
+          "2025 [7]. CertiK's Hack3d report for 2025 records US$3.35 billion lost to hacks, scams and exploits in "
+          "total; Ethereum had the most incidents (310), worth about US$1.70 billion [8]. Most of the 2025 dollar "
+          "value came from a few infrastructure and key-compromise attacks, not from contract-code bugs. A secondary "
+          "summary of TRM Labs data attributes about 12 % of stolen value (52 incidents) to code exploits [9]; we "
+          "could not check this figure against TRM's own report, so it is indicative only. Contract-code flaws are "
+          "therefore a smaller share of the money lost, but a recurring and preventable one, which is the category a "
+          "pre-deployment check addresses.")
+    doc.p("According to CoinEdition (via CryptoRank, 7 March 2026), Pakistan's Parliament passed the Virtual Assets "
+          "Act 2026 on 6 March 2026, establishing the Pakistan Virtual Assets Regulatory Authority (PVARA), which is "
+          "reported to be responsible for licensing virtual-asset service providers and for regulatory clarity on "
+          "token launches and DeFi protocols; the same article states that Pakistan ranked third in Chainalysis's "
+          "2025 adoption index [10]. A newly licensed sector creates demand from small local teams for low-cost "
+          "screening. Muhafiz.sol is a student research tool: we do not claim that PVARA requires contract scanning, "
+          "we have no link with PVARA, and it is not a compliance product.")
     doc.h("1.3 Why machine learning?", 2)
     doc.p("Rule-based analysers such as Slither need code that compiles with the right compiler version and apply "
           "hand-written detectors. A trained model reads raw source text, needs no compiler, returns a ranked "
@@ -176,7 +177,10 @@ def chapter3(doc, f: Facts) -> None:
         ["Construction", "Verified Ethereum contracts (Smart Contract Sanctuary / Etherscan), flattened and analysed with Slither (38 detectors)"],
         ["Licence", "MIT for the repository; contracts keep their original licences; academic, non-commercial use"],
         ["Features used", "source_code (input); raw Slither detector list (target). Bytecode is not downloaded."],
-        ["Size", f"{f.funnel['rows_in_raw_shards']:,} contracts; {f.funnel['after_exact_deduplication']:,} unique after exact de-duplication"],
+        ["Size", f"{f.funnel['rows_in_raw_shards']:,} contracts; {f.funnel['after_dropping_empty_or_tiny_sources']:,} after "
+                 f"dropping {f.funnel['after_dropping_failed_slither_runs'] - f.funnel['after_dropping_empty_or_tiny_sources']:,} "
+                 f"empty or tiny sources (< 20 tokens); {f.funnel['after_exact_deduplication']:,} unique after exact "
+                 "de-duplication"],
         ["Target", f"multi-label, {len(f.classes)} families: {', '.join(f.classes)}"],
     ], columns=["Item", "Details"]), "Dataset A", widths=[3, 13.8])
     doc.p("Acquisition. The Hub repository uses a loading script that recent versions of the datasets library no "
@@ -204,7 +208,8 @@ def chapter3(doc, f: Facts) -> None:
     fam = f.t["family_distribution"]
     if fam is not None:
         doc.table(fam[["family", "positives", "prevalence", "kept_as_class"]],
-                  "Label families in the de-duplicated pool; rare-class rule: >= 1 % prevalence and >= 300 training positives",
+                  "Label families in the de-duplicated pool; rare-class rule (applied to the whole pool before "
+                  "splitting): >= 1 % prevalence and >= 300 expected training positives (70 % of the pool's positives)",
                   nd=4)
     doc.h("3.3 Dataset B: SmartBugs Curated (external test only)", 2)
     sbc = f.t["smartbugs_counts"]
@@ -247,6 +252,16 @@ def chapter3(doc, f: Facts) -> None:
           "multi-label stratification so that every class has positives in every split. Under a random split of the "
           f"same sizes, {pct(d['random_split_leakage_rate'])} of validation and test contracts would have a clone in "
           f"the training data; under our split the figure is {pct(d['group_split_leakage_rate'])}.")
+    if "giant_groups_forced_to_train" in d:
+        doc.p(f"Two consequences must be kept in mind when reading the results. First, clone groups larger than 1 % of "
+              f"the pool always go to training: {d['giant_groups_forced_to_train']} template families with "
+              f"{d['contracts_in_giant_groups']:,} contracts ({d['contracts_in_giant_groups'] / f.sizes['train']:.0%} of "
+              "the training split) are therefore never evaluated, so the test scores describe contracts outside the "
+              "six largest template families. Second, because whole groups move together, class prevalence differs "
+              "between the splits even with stratification (Figure 4); for example unchecked-calls is "
+              + (", ".join(f"{pct(v)} in {k}" for k, v in f.prevalence("unchecked-calls").items())
+                 if hasattr(f, "prevalence") else "about 50 % in train, 40 % in validation and 45 % in test")
+              + ". Thresholds chosen on validation are therefore applied to a slightly different label mix on test.")
     doc.p(f"A by-product is a direct measurement of label noise: {d['exact_groups_with_label_conflicts']:,} groups of "
           "identical (normalised) code carry different Slither labels.")
     doc.figure(FIG / "duplicate_groups.png", "Contracts by clone-group size after exact de-duplication", 14)

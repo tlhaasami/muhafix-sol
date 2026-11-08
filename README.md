@@ -18,6 +18,9 @@ from models trained by the group; no rule-based analyser runs at prediction time
 
 ## Quick start (app only, ~2 minutes)
 
+Requires **Python 3.12 or newer** (developed and tested on Python 3.14); the pinned numpy and
+scipy versions do not install on older Pythons.
+
 ```bash
 python -m venv .venv
 .venv\Scripts\activate          # Windows   (Linux/macOS: source .venv/bin/activate)
@@ -35,10 +38,12 @@ python -m src.build_data                  # Phase 1: download, clean, de-duplica
 python -m src.train                       # Phase 2: grid search on validation, thresholds, freeze model
 git tag model-v1                          # freeze marker: required before any test/SmartBugs evaluation
 python -m src.run_experiments             # E1-E4 tables and figures
+python -m src.gold_overlap                # which SmartBugs contracts also occur in the training data
 python -m src.eval_explain                # E3b line hit-rate, E5 latency / error analysis
 python -m src.make_report                 # report (.docx), slides (.pptx), model card refresh
 python notebooks/build_notebooks.py       # executes the four notebooks
-pytest                                    # unit + integration tests
+pytest                                    # unit + integration tests (slow re-training tests are skipped)
+RUN_SLOW=1 pytest                         # also re-trains logistic regression and re-runs de-duplication (B3, A4)
 ```
 
 Every path, seed and hyper-parameter lives in `config.yaml`. Seed 42 everywhere; `python -m src.build_data`
@@ -80,7 +85,7 @@ src/
 app/app.py, components.py   Streamlit application; sample_contracts/ holds 6 demo contracts
 models/                     frozen vectoriser, models, thresholds, label map, similarity index
 notebooks/                  01 data audit, 02 EDA, 03 models, 04 results
-tests/                      unit, acceptance (A1-A6, B1-B6, C1-C5) and integration tests
+tests/                      unit, acceptance (A1-A5, B1-B6, C2-C5; A6/C1/C6 need other laptops) and integration tests
 docs/                       data card, model card, label decision, dedup report, test evidence
 reports/                    figures, tables, final report and slides
 ```
