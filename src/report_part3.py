@@ -16,14 +16,14 @@ REFERENCES = [
     "SmartBugs Curated dataset. GitHub: github.com/smartbugs/smartbugs-curated (README, vulnerabilities.json, ICSE2020_curated_69.txt), commit 230e649.",
     "Durieux, T., Ferreira, J. F., Abreu, R., Cruz, P. (2020). Empirical review of automated analysis tools on 47,587 Ethereum smart contracts. ICSE 2020.",
     "Ferreira, J. F., Cruz, P., Durieux, T., Abreu, R. (2020). SmartBugs: A Framework to Analyze Solidity Smart Contracts. arXiv:2007.04771.",
-    "NCC Group. DASP Top 10 (dasp.co); Smart Contract Weakness Classification Registry (swcregistry.io).",
+    "NCC Group. Decentralized Application Security Project (DASP) Top 10 (dasp.co). Smart Contract Weakness Classification (SWC) Registry (swcregistry.io).",
     "Feist, J., Grieco, G., Groce, A. (2019). Slither: a static analysis framework for smart contracts. github.com/crytic/slither.",
     "Chainalysis (2026). Crypto hacking and stolen funds, 2025. chainalysis.com/blog/crypto-hacking-stolen-funds-2026/.",
     "CertiK. Hack3d: The Web3 Security Report 2025. certik.com/blog/hack3d-the-web3-security-report-2025.",
     "Smart Contract Security Statistics 2026 (secondary summary citing TRM Labs). spacedev.io/blog/smart-contract-security-statistics-2026.",
     "CoinEdition via CryptoRank (7 March 2026). Pakistan Passes Virtual Assets Act 2026 to Catalyze Crypto Adoption.",
-    "Tang, X. et al. (2023). Lightning Cat: Deep learning-based solution for smart contract vulnerabilities detection. Scientific Reports 13, 20106.",
-    "FTSmartAudit (2024). On the importance of balanced training data for vulnerability detection. arXiv:2410.13918.",
+    "Tang, X. et al. (2023). Lightning Cat: Deep learning-based solution for smart contract vulnerabilities detection. Scientific Reports 13, 20106. nature.com/articles/s41598-023-47219-0.",
+    "Wei, Z. et al. (2024). FTSmartAudit: A Knowledge Distillation-Enhanced Framework for Automated Smart Contract Auditing Using Fine-Tuned LLMs. arXiv:2410.13918.",
     "Broder, A. Z. (1997). On the resemblance and containment of documents. Compression and Complexity of Sequences (MinHash).",
     "Sechidis, K., Tsoumakas, G., Vlahavas, I. (2011). On the stratification of multi-label data. ECML PKDD (iterative stratification).",
     "Zeiler, M. D., Fergus, R. (2014). Visualizing and understanding convolutional networks. ECCV (occlusion sensitivity).",
@@ -75,7 +75,8 @@ def chapter6(doc, f: Facts) -> None:
     doc.p("The app (app/app.py) implements the layout of blueprint section 9.1 with four tabs. The sidebar holds the "
           "sample-contract selector, the model selector (the recommended model and logistic regression for "
           "comparison), the sensitivity slider and the model card. The scan tab takes pasted code or a .sol upload, "
-          "validates it (empty, larger than 2 MB, too short, or not Solidity), and shows: a risk badge with an icon, "
+          "validates it (empty, an upload larger than 2 MB or text longer than 1.5 million characters, too short, or "
+          "not Solidity), and shows: a risk badge with an icon, "
           "a word and the rule in plain language (never colour alone); a probability bar per weakness type with its "
           "alert level marked; a plain-language explanation and typical fix for the selected type; the source code "
           "with line numbers and the top-k lines highlighted; a function-level view; three similar training "
@@ -113,7 +114,12 @@ def chapter8(doc, f: Facts) -> None:
         ("No semantic understanding. ", "TF-IDF over token n-grams sees which tokens appear near each other, not control or "
                                         "data flow. Code that uses suspicious keywords correctly can be flagged, and unusual "
                                         "vulnerable code can be missed."),
-        ("Small gold set. ", "SmartBugs has 143 contracts; per-class intervals are wide and only recall can be measured."),
+        ("Small gold set, partly seen in training. ", "SmartBugs has 143 contracts; per-class intervals are wide and only "
+                                     "recall can be measured. 42 of them also occur (exactly or nearly) in the training "
+                                     "pool; we found this after the freeze and report SmartBugs results with and "
+                                     "without them (E3, E3b)."),
+        ("Calibration. ", "The calibration gate used the class-averaged error, so the primary MLP was not rescaled although "
+                          "several classes are over-confident; its percentages are scores, not exact probabilities."),
         ("Explanations explain the model. ", "Occlusion shows which lines move the score, which can be correlated code rather "
                                              "than the bug itself (hit-rates in E3b quantify this)."),
         ("Long files. ", "Very long flattened files are truncated to a token budget (head and tail kept); lines in the middle "

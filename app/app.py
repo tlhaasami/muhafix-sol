@@ -238,8 +238,8 @@ with tab_scan:
 with tab_metrics:
     tables = ROOT / "reports" / "tables"
     st.markdown("### How good is the model?")
-    st.markdown("All numbers below come from data the model **never saw while it was being built**. "
-                "They are the same numbers as in the project report.")
+    st.markdown("The test-split numbers come from contracts kept out of training and tuning, with near-copies "
+                "kept apart. They are the same numbers as in the project report.")
     e1 = tables / "e1_test_summary.csv"
     if e1.exists():
         df = pd.read_csv(e1)
@@ -253,7 +253,9 @@ with tab_metrics:
     e3 = tables / "e3_smartbugs_recall.csv"
     if e3.exists():
         st.markdown("**Independent check on SmartBugs Curated** (contracts annotated by humans; recall = share "
-                    "of known-vulnerable contracts that were flagged, with 95% bootstrap interval):")
+                    "of known-vulnerable contracts that were flagged, with 95% bootstrap interval). 42 of the 143 "
+                    "SmartBugs contracts also occur in the training data, so recall is shown for all contracts and "
+                    "for those with no overlap (the honest number):")
         st.dataframe(pd.read_csv(e3), hide_index=True, width="stretch")
     e3b = tables / "e3b_hit_rate.csv"
     if e3b.exists():

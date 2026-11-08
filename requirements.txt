@@ -1,3 +1,4 @@
+# Requires Python 3.12+ (tested on 3.14).
 # Muhafiz.sol runtime dependencies (data pipeline, evaluation, Streamlit app, tests).
 # Pinned after a clean install in a fresh virtual environment (Python 3.14, Windows 11).
 # Training the MLP additionally needs PyTorch: pip install -r requirements-train.txt
