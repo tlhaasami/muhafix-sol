@@ -120,7 +120,7 @@ def l2_normalise(X: np.ndarray) -> np.ndarray:
     return X / np.maximum(np.linalg.norm(X, axis=1, keepdims=True), 1e-12)
 
 
-def top_k_cosine(Q: np.ndarray, D: np.ndarray, k: int, chunk: int = 2048, exclude_self: bool = False):
+def top_k_cosine(Q: np.ndarray, D: np.ndarray, k: int, chunk: int = 256, exclude_self: bool = False):
     """Top-k cosine neighbours of each row of Q among rows of D (both L2-normalised)."""
     idx = np.empty((Q.shape[0], k), dtype=np.int64)
     sim = np.empty((Q.shape[0], k), dtype=np.float32)
@@ -172,11 +172,25 @@ class MLPHistory:
     seconds: float = 0.0
 
 
-def _batch_tensor(X, rows, torch):
+def _batch_tensor(X, rows, torch, device=None):
+    """Rows of X as a float32 tensor on `device`. On a GPU a sparse batch is sent as its non-zeros
+    and made dense there, which is much cheaper than densifying on the CPU and copying."""
     xb = X[rows]
+    if sp.issparse(xb) and device is not None and device.type == "cuda":
+        xb = xb.tocoo()
+        idx = torch.from_numpy(np.vstack([xb.row, xb.col]).astype(np.int64)).to(device)
+        val = torch.from_numpy(xb.data.astype(np.float32)).to(device)
+        return torch.sparse_coo_tensor(idx, val, xb.shape, device=device).to_dense()
     if sp.issparse(xb):
         xb = xb.toarray()
-    return torch.from_numpy(np.asarray(xb, dtype=np.float32))
+    t = torch.from_numpy(np.asarray(xb, dtype=np.float32))
+    return t if device is None else t.to(device)
+
+
+def _torch_device(torch, device: str = "auto"):
+    if device == "auto":
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+    return torch.device(device)
 
 
 class MLPModel:
@@ -186,10 +200,10 @@ class MLPModel:
 
     def __init__(self, hidden: Sequence[int] = (512, 128), dropout: float = 0.3, lr: float = 1e-3,
                  weight_decay: float = 1e-5, batch_size: int = 256, max_epochs: int = 30, patience: int = 4,
-                 seed: int = 42, max_pos_weight: float = 50.0, verbose: bool = True):
+                 seed: int = 42, max_pos_weight: float = 50.0, verbose: bool = True, device: str = "auto"):
         self.hidden, self.dropout, self.lr, self.weight_decay = list(hidden), dropout, lr, weight_decay
         self.batch_size, self.max_epochs, self.patience, self.seed = batch_size, max_epochs, patience, seed
-        self.max_pos_weight, self.verbose = max_pos_weight, verbose
+        self.max_pos_weight, self.verbose, self.device = max_pos_weight, verbose, device
         self.history = MLPHistory()
         self.weights_: List[np.ndarray] = []
         self.biases_: List[np.ndarray] = []
@@ -200,6 +214,8 @@ class MLPModel:
 
         torch.manual_seed(self.seed)
         np.random.seed(self.seed)
+        dev = _torch_device(torch, getattr(self, "device", "auto"))
+        self.device_used_ = str(dev)
         Y = np.asarray(Y, dtype=np.float32)
         d, c = X.shape[1], Y.shape[1]
         layers: List[nn.Module] = []
@@ -208,10 +224,10 @@ class MLPModel:
             layers += [nn.Linear(prev, h), nn.ReLU(), nn.Dropout(self.dropout)]
             prev = h
         layers.append(nn.Linear(prev, c))
-        net = nn.Sequential(*layers)
+        net = nn.Sequential(*layers).to(dev)
         pos = Y.sum(0)
         pos_weight = torch.tensor(np.clip((len(Y) - pos) / np.maximum(pos, 1), 1.0, self.max_pos_weight),
-                                  dtype=torch.float32)
+                                  dtype=torch.float32, device=dev)
         loss_fn = nn.BCEWithLogitsLoss(pos_weight=pos_weight)
         opt = torch.optim.Adam(net.parameters(), lr=self.lr, weight_decay=self.weight_decay)
         rng = np.random.default_rng(self.seed)
@@ -223,8 +239,8 @@ class MLPModel:
             total = 0.0
             for s in range(0, len(perm), self.batch_size):
                 rows = np.sort(perm[s:s + self.batch_size])
-                xb = _batch_tensor(X, rows, torch)
-                yb = torch.from_numpy(Y[rows])
+                xb = _batch_tensor(X, rows, torch, dev)
+                yb = torch.from_numpy(Y[rows]).to(dev)
                 opt.zero_grad()
                 loss = loss_fn(net(xb), yb)
                 loss.backward()
@@ -233,8 +249,9 @@ class MLPModel:
             self.history.train_loss.append(total / X.shape[0])
             if X_val is None:
                 continue
-            logits = self._torch_logits(net, X_val, torch)
-            vl = float(loss_fn(torch.from_numpy(logits), torch.from_numpy(np.asarray(Y_val, np.float32))))
+            logits = self._torch_logits(net, X_val, torch, dev)
+            vl = float(loss_fn(torch.from_numpy(logits).to(dev),
+                               torch.from_numpy(np.asarray(Y_val, np.float32)).to(dev)))
             ap = float(np.nanmean(pr_auc(Y_val, 1 / (1 + np.exp(-logits)))))
             self.history.val_loss.append(vl)
             self.history.val_pr_auc.append(ap)
@@ -252,16 +269,17 @@ class MLPModel:
             net.load_state_dict(best_state)
         self.history.seconds = time.time() - t0
         linears = [m for m in net if isinstance(m, nn.Linear)]
-        self.weights_ = [m.weight.detach().numpy().T.astype(np.float32) for m in linears]
-        self.biases_ = [m.bias.detach().numpy().astype(np.float32) for m in linears]
+        self.weights_ = [m.weight.detach().cpu().numpy().T.astype(np.float32) for m in linears]
+        self.biases_ = [m.bias.detach().cpu().numpy().astype(np.float32) for m in linears]
         return self
 
-    def _torch_logits(self, net, X, torch, batch: int = 2048) -> np.ndarray:
+    def _torch_logits(self, net, X, torch, device=None, batch: int = 2048) -> np.ndarray:
         net.eval()
         outs = []
         with torch.no_grad():
             for s in range(0, X.shape[0], batch):
-                outs.append(net(_batch_tensor(X, np.arange(s, min(s + batch, X.shape[0])), torch)).numpy())
+                rows = np.arange(s, min(s + batch, X.shape[0]))
+                outs.append(net(_batch_tensor(X, rows, torch, device)).cpu().numpy())
         return np.vstack(outs)
 
     # numpy inference (dropout is inactive at inference time)

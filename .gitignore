@@ -35,3 +35,5 @@ project.docx
 # OS
 .DS_Store
 Thumbs.db
+dist/
+.venv-gpu/
