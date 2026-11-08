@@ -13,7 +13,7 @@ import numpy as np
 import pandas as pd
 
 from src.config import load_config, path
-from src.report_utils import MODEL_NAMES, Facts, fmt, pct
+from src.report_utils import MODEL_NAMES, Facts, fmt, model_lc, pct
 
 FIG = path("figures_dir")
 
@@ -86,9 +86,13 @@ def chapter4(doc, f: Facts) -> None:
         v = sel[["model", "val_macro_pr_auc", "val_macro_f2", "ece_before", "ece_after", "calibrated", "fit_seconds",
                  "size_mb"]].copy()
         v["model"] = v["model"].map(MODEL_NAMES)
-        doc.table(v, "Model selection on the validation split (primary = highest validation macro PR-AUC)")
+        v["fit_seconds"] = v["fit_seconds"].map(lambda x: f"{x / 60:.1f}")
+        v["size_mb"] = v["size_mb"].map(lambda x: f"{x:.1f}")
+        v = v.rename(columns={"fit_seconds": "fit_minutes"})
+        doc.table(v, "Model selection on the validation split (primary = highest validation macro PR-AUC; fit times "
+                     "are wall-clock on one laptop CPU shared by several jobs)")
         best = sel.iloc[0] if sel.iloc[0]["model"] != "prior" else sel.iloc[1]
-        doc.p(f"The {MODEL_NAMES[f.primary].lower()} has the highest validation macro PR-AUC "
+        doc.p(f"The {model_lc(MODEL_NAMES[f.primary])} has the highest validation macro PR-AUC "
               f"({best['val_macro_pr_auc']:.3f}) and is the primary model. Logistic regression is also shipped in "
               "the app so users can compare a simple, interpretable model with the primary one (feature F12).")
     doc.h("4.5 Decision thresholds, calibration and risk level", 2)
@@ -122,8 +126,8 @@ def chapter5(doc, f: Facts) -> None:
     prior = e1[e1.key == "prior"].iloc[0]
     lr = e1[e1.key == "logreg"].iloc[0]
     mlp = e1[e1.key == "mlp"].iloc[0]
-    txt = (f"Interpretation. The {top['model'].lower()} ranks first on macro PR-AUC ({top['macro_pr_auc']:.3f}, "
-           f"{top['macro_pr_auc_ci']}), followed by the {second['model'].lower()} ({second['macro_pr_auc']:.3f}). "
+    txt = (f"Interpretation. The {model_lc(top['model'])} ranks first on macro PR-AUC ({top['macro_pr_auc']:.3f}, "
+           f"{top['macro_pr_auc_ci']}), followed by the {model_lc(second['model'])} ({second['macro_pr_auc']:.3f}). "
            f"The prior baseline scores {prior['macro_pr_auc']:.3f} - simply the average class prevalence - yet its "
            f"label accuracy is {prior['label_accuracy']:.3f}, which shows why accuracy is not our headline metric: "
            "predicting nothing already looks good when most labels are 0. ")
@@ -271,14 +275,22 @@ def chapter7(doc, f: Facts) -> None:
         doc.table(sl, "E5: test-split recall / precision of the primary model by contract length and compiler generation",
                   font=8)
     if f.cases:
-        rows = [[c["kind"], c["id"], c["class"], f"{c['probability']:.2f}", "yes" if c["flagged"] else "no",
+        rows = [[c["kind"], _short_id(c["id"]), c["class"], f"{c['probability']:.2f}", "yes" if c["flagged"] else "no",
                  ", ".join(map(str, c["top_lines"])) or "-", ", ".join(map(str, c["vulnerable_lines"][:4]))]
                 for c in f.cases]
         doc.table(pd.DataFrame(rows, columns=["kind", "SmartBugs contract", "class", "p", "flagged", "top lines",
                                               "annotated lines"]), "E5: ten case studies (five successes, five failures)",
-                  font=8)
+                  font=8, widths=[1.6, 5.2, 2.4, 1.1, 1.5, 2.3, 2.4])
         for c in f.cases:
             doc.p(_case_text(c), size=9.5)
+
+
+def _short_id(case_id: str) -> str:
+    """category/file name, with long address-style file names shortened so table columns stay readable."""
+    cat, _, name = case_id.rpartition("/")
+    if name.startswith("0x") and len(name) > 26:
+        name = f"{name[:10]}...{name[-8:]}"
+    return f"{cat}/{name}" if cat else name
 
 
 def _case_text(c: dict) -> str:
@@ -307,7 +319,7 @@ def chapter9(doc, f: Facts) -> None:
           "duplicates, keeping clone groups and giant template families out of the evaluation splits, stripping "
           "annotations, and freezing the model before any test evaluation.")
     if prim is not None:
-        doc.p(f"The primary {MODEL_NAMES[f.primary].lower()} reaches a macro PR-AUC of {prim['macro_pr_auc']:.3f} on "
+        doc.p(f"The primary {model_lc(MODEL_NAMES[f.primary])} reaches a macro PR-AUC of {prim['macro_pr_auc']:.3f} on "
               f"unseen contract families and flags "
               f"{pct(s3[s3.key == f.primary]['smartbugs_pooled_recall_confirmed'].iloc[0])} of the human-annotated "
               "SmartBugs contracts in the categories where a fair comparison is possible. The random-split ablation "

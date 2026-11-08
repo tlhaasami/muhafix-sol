@@ -118,7 +118,7 @@ def build_reports() -> None:
     plotstyle.save(fig, figs / "label_distribution.png")
 
     # ---- co-occurrence
-    Y = df[[f"y_{c}" for c in classes]].to_numpy()
+    Y = df[[f"y_{c}" for c in classes]].to_numpy().astype(np.int64)  # int8 labels would overflow in Y.T @ Y
     co = (Y.T @ Y) / np.maximum(Y.sum(0)[:, None], 1)
     fig, ax = plt.subplots(figsize=(6.4, 5.2))
     im = ax.imshow(co, cmap=plt.matplotlib.colors.ListedColormap(plotstyle.SEQ), vmin=0, vmax=1)

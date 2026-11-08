@@ -37,3 +37,4 @@ project.docx
 Thumbs.db
 dist/
 .venv-gpu/
+~$*

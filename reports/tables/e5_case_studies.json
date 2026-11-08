@@ -1,0 +1,241 @@
+[
+  {
+    "kind": "success",
+    "id": "bad_randomness/random_number_generator.sol",
+    "class": "bad-randomness",
+    "probability": 1.0,
+    "flagged": true,
+    "top_lines": [
+      24,
+      22,
+      12
+    ],
+    "vulnerable_lines": [
+      12,
+      18,
+      20,
+      22
+    ],
+    "top_line_text": [
+      "return uint256((h / x)) % max + 1;",
+      "uint256 h = uint256(blockhash(seed));",
+      "uint256 private salt =  block.timestamp;"
+    ],
+    "vulnerable_text": [
+      "uint256 private salt =  block.timestamp;",
+      "uint256 y = salt * block.number / (salt % 5);",
+      "uint256 seed = block.number / 3 + (salt % 300) + y;"
+    ]
+  },
+  {
+    "kind": "success",
+    "id": "unchecked_low_level_calls/lotto.sol",
+    "class": "unchecked-calls",
+    "probability": 0.9999966621398926,
+    "flagged": true,
+    "top_lines": [
+      20,
+      27,
+      11
+    ],
+    "vulnerable_lines": [
+      20,
+      27
+    ],
+    "top_line_text": [
+      "winner.send(winAmount);",
+      "msg.sender.send(this.balance);",
+      "bool public payedOut = false;"
+    ],
+    "vulnerable_text": [
+      "winner.send(winAmount);",
+      "msg.sender.send(this.balance);"
+    ]
+  },
+  {
+    "kind": "success",
+    "id": "reentrancy/0x7541b76cb60f4c60af330c208b0623b7f54bf615.sol",
+    "class": "reentrancy",
+    "probability": 0.9975001215934753,
+    "flagged": true,
+    "top_lines": [
+      29,
+      38,
+      25
+    ],
+    "vulnerable_lines": [
+      29
+    ],
+    "top_line_text": [
+      "if(msg.sender.call.value(_am)())",
+      "public",
+      "var acc = Acc[msg.sender];"
+    ],
+    "vulnerable_text": [
+      "if(msg.sender.call.value(_am)())"
+    ]
+  },
+  {
+    "kind": "success",
+    "id": "reentrancy/0x7b368c4e805c3870b6c49a3f1f49f69af8662cf3.sol",
+    "class": "reentrancy",
+    "probability": 0.9975001215934753,
+    "flagged": true,
+    "top_lines": [
+      29,
+      38,
+      25
+    ],
+    "vulnerable_lines": [
+      29
+    ],
+    "top_line_text": [
+      "if(msg.sender.call.value(_am)())",
+      "public",
+      "var acc = Acc[msg.sender];"
+    ],
+    "vulnerable_text": [
+      "if(msg.sender.call.value(_am)())"
+    ]
+  },
+  {
+    "kind": "success",
+    "id": "reentrancy/0xf015c35649c82f5467c9c74b7f28ee67665aad68.sol",
+    "class": "reentrancy",
+    "probability": 0.9975001215934753,
+    "flagged": true,
+    "top_lines": [
+      29,
+      38,
+      25
+    ],
+    "vulnerable_lines": [
+      29
+    ],
+    "top_line_text": [
+      "if(msg.sender.call.value(_am)())",
+      "public",
+      "var acc = Acc[msg.sender];"
+    ],
+    "vulnerable_text": [
+      "if(msg.sender.call.value(_am)())"
+    ]
+  },
+  {
+    "kind": "failure",
+    "id": "bad_randomness/old_blockhash.sol",
+    "class": "bad-randomness",
+    "probability": 0.00021213805302977562,
+    "flagged": false,
+    "top_lines": [
+      35,
+      24,
+      20
+    ],
+    "vulnerable_lines": [
+      35
+    ],
+    "top_line_text": [
+      "bytes32 answer = blockhash(guesses[msg.sender].block);",
+      "function lockInGuess(bytes32 hash) public payable {",
+      "constructor() public payable {"
+    ],
+    "vulnerable_text": [
+      "bytes32 answer = blockhash(guesses[msg.sender].block);"
+    ]
+  },
+  {
+    "kind": "failure",
+    "id": "unchecked_low_level_calls/0x0cbe050f75bc8f8c2d6c0d249fea125fd6e1acc9.sol",
+    "class": "unchecked-calls",
+    "probability": 0.0009938859147951007,
+    "flagged": false,
+    "top_lines": [
+      12
+    ],
+    "vulnerable_lines": [
+      12
+    ],
+    "top_line_text": [
+      "a.call();"
+    ],
+    "vulnerable_text": [
+      "a.call();"
+    ]
+  },
+  {
+    "kind": "failure",
+    "id": "bad_randomness/lottery.sol",
+    "class": "bad-randomness",
+    "probability": 0.0010015311418101192,
+    "flagged": false,
+    "top_lines": [
+      38,
+      55,
+      42
+    ],
+    "vulnerable_lines": [
+      38,
+      42
+    ],
+    "top_line_text": [
+      "bool won = (block.number % 2) == 0;",
+      "if(msg.sender != organizer) { throw; }",
+      "bets.push(Bet(msg.value, block.number, won));"
+    ],
+    "vulnerable_text": [
+      "bool won = (block.number % 2) == 0;",
+      "bets.push(Bet(msg.value, block.number, won));"
+    ]
+  },
+  {
+    "kind": "failure",
+    "id": "reentrancy/spank_chain_payment.sol",
+    "class": "reentrancy",
+    "probability": 0.9955175518989563,
+    "flagged": true,
+    "top_lines": [
+      244,
+      223,
+      180
+    ],
+    "vulnerable_lines": [
+      426,
+      430
+    ],
+    "top_line_text": [
+      "balances[msg.sender] = _initialAmount;",
+      "contract HumanStandardToken is StandardToken {",
+      "contract StandardToken is Token {"
+    ],
+    "vulnerable_text": [
+      "Channels[_lcID].partyAddresses[0].transfer(Channels[_lcID].ethBalances[0]);",
+      "require(Channels[_lcID].token.transfer(Channels[_lcID].partyAddresses[0], Channels[_lcID].erc20Balances[0]),\"CreateChannel: token transfer failure\");"
+    ]
+  },
+  {
+    "kind": "failure",
+    "id": "unchecked_low_level_calls/0x19cf8481ea15427a98ba3cdd6d9e14690011ab10.sol",
+    "class": "unchecked-calls",
+    "probability": 0.38628947734832764,
+    "flagged": true,
+    "top_lines": [
+      374,
+      346,
+      326
+    ],
+    "vulnerable_lines": [
+      439,
+      465
+    ],
+    "top_line_text": [
+      "t.coinContract.transfer(receiver, amount);",
+      "UpdatedTokenInformation(name, symbol);",
+      "function () payable  public {"
+    ],
+    "vulnerable_text": [
+      "owner.send(this.balance - SubX);",
+      "owner.send(this.balance);"
+    ]
+  }
+]
