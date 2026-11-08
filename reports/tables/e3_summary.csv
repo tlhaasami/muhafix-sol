@@ -1,0 +1,7 @@
+model,key,smartbugs_pooled_recall_confirmed,test_clean_contracts,false_alarm_rate_on_clean_test,macro_fpr_test
+Majority / prior baseline,prior,1.0000,2834,1.0000,1.0000
+Logistic regression,logreg,0.5165,2834,0.3200,0.1727
+Decision tree,tree,0.5934,2834,0.7198,0.4214
+Random forest,forest,0.4286,2834,0.3730,0.2059
+K-nearest neighbours,knn,0.6484,2834,0.6898,0.2706
+MLP neural network,mlp,0.6264,2834,0.2879,0.1477
