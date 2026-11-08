@@ -1,11 +1,11 @@
-smartbugs_category,mapped_class,status,contracts,recall,ci_low,ci_high,mean_probability,any_flag_rate
-unchecked_low_level_calls,unchecked-calls,confirmed,52,0.4808,0.3462,0.6154,0.3489,0.7885
-reentrancy,reentrancy,confirmed,31,0.8710,0.7419,0.9677,0.8237,0.9032
-bad_randomness,bad-randomness,confirmed,8,0.6250,0.3719,0.8750,0.5364,0.8750
-access_control,access-control,partial,18,0.6111,0.3889,0.8333,0.5611,0.6111
-arithmetic,-,not evaluated,15,,,,,0.2000
-denial_of_service,-,not evaluated,6,,,,,0.5000
-time_manipulation,-,not evaluated,5,,,,,0.8000
-front_running,-,not evaluated,4,,,,,0.5000
-other,-,not evaluated,3,,,,,0.6667
-short_addresses,-,not evaluated,1,,,,,0.0000
+smartbugs_category,mapped_class,status,contracts,recall,ci_low,ci_high,mean_probability,any_flag_rate,contracts_no_overlap,recall_no_overlap,ci_low_no_overlap,ci_high_no_overlap
+unchecked_low_level_calls,unchecked-calls,confirmed,52,0.4808,0.3462,0.6154,0.3489,0.7885,32.0000,0.4062,0.2188,0.5938
+reentrancy,reentrancy,confirmed,31,0.8710,0.7419,0.9677,0.8237,0.9032,13.0000,0.7692,0.5385,1.0000
+bad_randomness,bad-randomness,confirmed,8,0.6250,0.3719,0.8750,0.5364,0.8750,6.0000,0.6667,0.3333,1.0000
+access_control,access-control,partial,18,0.6111,0.3889,0.8333,0.5611,0.6111,18.0000,0.6111,0.3889,0.8333
+arithmetic,-,not evaluated,15,,,,,0.2000,,,,
+denial_of_service,-,not evaluated,6,,,,,0.5000,,,,
+time_manipulation,-,not evaluated,5,,,,,0.8000,,,,
+front_running,-,not evaluated,4,,,,,0.5000,,,,
+other,-,not evaluated,3,,,,,0.6667,,,,
+short_addresses,-,not evaluated,1,,,,,0.0000,,,,

@@ -1,61 +1,61 @@
-model,smartbugs_category,mapped_class,status,contracts,recall,ci_low,ci_high,mean_probability,any_flag_rate
-prior,access_control,access-control,partial,18,1.0000,1.0000,1.0000,0.1504,1.0000
-prior,arithmetic,-,not evaluated,15,,,,,1.0000
-prior,bad_randomness,bad-randomness,confirmed,8,1.0000,1.0000,1.0000,0.0380,1.0000
-prior,denial_of_service,-,not evaluated,6,,,,,1.0000
-prior,front_running,-,not evaluated,4,,,,,1.0000
-prior,other,-,not evaluated,3,,,,,1.0000
-prior,reentrancy,reentrancy,confirmed,31,1.0000,1.0000,1.0000,0.2850,1.0000
-prior,short_addresses,-,not evaluated,1,,,,,1.0000
-prior,time_manipulation,-,not evaluated,5,,,,,1.0000
-prior,unchecked_low_level_calls,unchecked-calls,confirmed,52,1.0000,1.0000,1.0000,0.5014,1.0000
-logreg,access_control,access-control,partial,18,0.6111,0.3889,0.8333,0.3858,0.6111
-logreg,arithmetic,-,not evaluated,15,,,,,0.1333
-logreg,bad_randomness,bad-randomness,confirmed,8,0.7500,0.5000,1.0000,0.6339,1.0000
-logreg,denial_of_service,-,not evaluated,6,,,,,0.6667
-logreg,front_running,-,not evaluated,4,,,,,0.5000
-logreg,other,-,not evaluated,3,,,,,1.0000
-logreg,reentrancy,reentrancy,confirmed,31,0.7097,0.5484,0.8710,0.4374,0.8065
-logreg,short_addresses,-,not evaluated,1,,,,,0.0000
-logreg,time_manipulation,-,not evaluated,5,,,,,0.8000
-logreg,unchecked_low_level_calls,unchecked-calls,confirmed,52,0.3654,0.2308,0.5000,0.2176,0.6923
-tree,access_control,access-control,partial,18,0.4444,0.2222,0.6667,0.1841,0.6667
-tree,arithmetic,-,not evaluated,15,,,,,0.1333
-tree,bad_randomness,bad-randomness,confirmed,8,0.6250,0.2500,0.8750,0.2168,1.0000
-tree,denial_of_service,-,not evaluated,6,,,,,0.8333
-tree,front_running,-,not evaluated,4,,,,,1.0000
-tree,other,-,not evaluated,3,,,,,0.6667
-tree,reentrancy,reentrancy,confirmed,31,0.8387,0.7097,0.9677,0.3538,0.9355
-tree,short_addresses,-,not evaluated,1,,,,,0.0000
-tree,time_manipulation,-,not evaluated,5,,,,,0.8000
-tree,unchecked_low_level_calls,unchecked-calls,confirmed,52,0.4423,0.3077,0.5769,0.1835,0.8654
-forest,access_control,access-control,partial,18,0.7778,0.5556,0.9444,0.3231,0.8333
-forest,arithmetic,-,not evaluated,15,,,,,0.1333
-forest,bad_randomness,bad-randomness,confirmed,8,0.5000,0.1250,0.8750,0.3358,0.8750
-forest,denial_of_service,-,not evaluated,6,,,,,0.8333
-forest,front_running,-,not evaluated,4,,,,,0.5000
-forest,other,-,not evaluated,3,,,,,0.6667
-forest,reentrancy,reentrancy,confirmed,31,0.7097,0.5484,0.8710,0.6364,0.8387
-forest,short_addresses,-,not evaluated,1,,,,,0.0000
-forest,time_manipulation,-,not evaluated,5,,,,,0.6000
-forest,unchecked_low_level_calls,unchecked-calls,confirmed,52,0.2500,0.1346,0.3659,0.1537,0.8654
-knn,access_control,access-control,partial,18,0.3889,0.1667,0.6111,0.2115,0.6111
-knn,arithmetic,-,not evaluated,15,,,,,0.7333
-knn,bad_randomness,bad-randomness,confirmed,8,0.5000,0.2500,0.8750,0.1727,1.0000
-knn,denial_of_service,-,not evaluated,6,,,,,1.0000
-knn,front_running,-,not evaluated,4,,,,,0.7500
-knn,other,-,not evaluated,3,,,,,1.0000
-knn,reentrancy,reentrancy,confirmed,31,0.9677,0.9032,1.0000,0.5560,1.0000
-knn,short_addresses,-,not evaluated,1,,,,,0.0000
-knn,time_manipulation,-,not evaluated,5,,,,,0.8000
-knn,unchecked_low_level_calls,unchecked-calls,confirmed,52,0.4808,0.3462,0.6154,0.1997,0.9423
-mlp,access_control,access-control,partial,18,0.6111,0.3889,0.8333,0.5611,0.6111
-mlp,arithmetic,-,not evaluated,15,,,,,0.2000
-mlp,bad_randomness,bad-randomness,confirmed,8,0.6250,0.3719,0.8750,0.5364,0.8750
-mlp,denial_of_service,-,not evaluated,6,,,,,0.5000
-mlp,front_running,-,not evaluated,4,,,,,0.5000
-mlp,other,-,not evaluated,3,,,,,0.6667
-mlp,reentrancy,reentrancy,confirmed,31,0.8710,0.7419,0.9677,0.8237,0.9032
-mlp,short_addresses,-,not evaluated,1,,,,,0.0000
-mlp,time_manipulation,-,not evaluated,5,,,,,0.8000
-mlp,unchecked_low_level_calls,unchecked-calls,confirmed,52,0.4808,0.3462,0.6154,0.3489,0.7885
+model,smartbugs_category,mapped_class,status,contracts,recall,ci_low,ci_high,mean_probability,any_flag_rate,contracts_no_overlap,recall_no_overlap,ci_low_no_overlap,ci_high_no_overlap
+prior,access_control,access-control,partial,18,1.0000,1.0000,1.0000,0.1504,1.0000,18.0000,1.0000,1.0000,1.0000
+prior,arithmetic,-,not evaluated,15,,,,,1.0000,,,,
+prior,bad_randomness,bad-randomness,confirmed,8,1.0000,1.0000,1.0000,0.0380,1.0000,6.0000,1.0000,1.0000,1.0000
+prior,denial_of_service,-,not evaluated,6,,,,,1.0000,,,,
+prior,front_running,-,not evaluated,4,,,,,1.0000,,,,
+prior,other,-,not evaluated,3,,,,,1.0000,,,,
+prior,reentrancy,reentrancy,confirmed,31,1.0000,1.0000,1.0000,0.2850,1.0000,13.0000,1.0000,1.0000,1.0000
+prior,short_addresses,-,not evaluated,1,,,,,1.0000,,,,
+prior,time_manipulation,-,not evaluated,5,,,,,1.0000,,,,
+prior,unchecked_low_level_calls,unchecked-calls,confirmed,52,1.0000,1.0000,1.0000,0.5014,1.0000,32.0000,1.0000,1.0000,1.0000
+logreg,access_control,access-control,partial,18,0.6111,0.3889,0.8333,0.3858,0.6111,18.0000,0.6111,0.3889,0.8333
+logreg,arithmetic,-,not evaluated,15,,,,,0.1333,,,,
+logreg,bad_randomness,bad-randomness,confirmed,8,0.7500,0.5000,1.0000,0.6339,1.0000,6.0000,0.6667,0.3333,1.0000
+logreg,denial_of_service,-,not evaluated,6,,,,,0.6667,,,,
+logreg,front_running,-,not evaluated,4,,,,,0.5000,,,,
+logreg,other,-,not evaluated,3,,,,,1.0000,,,,
+logreg,reentrancy,reentrancy,confirmed,31,0.7097,0.5484,0.8710,0.4374,0.8065,13.0000,0.3846,0.1538,0.6923
+logreg,short_addresses,-,not evaluated,1,,,,,0.0000,,,,
+logreg,time_manipulation,-,not evaluated,5,,,,,0.8000,,,,
+logreg,unchecked_low_level_calls,unchecked-calls,confirmed,52,0.3654,0.2308,0.5000,0.2176,0.6923,32.0000,0.3750,0.2188,0.5625
+tree,access_control,access-control,partial,18,0.4444,0.2222,0.6667,0.1841,0.6667,18.0000,0.4444,0.2222,0.6667
+tree,arithmetic,-,not evaluated,15,,,,,0.1333,,,,
+tree,bad_randomness,bad-randomness,confirmed,8,0.6250,0.2500,0.8750,0.2168,1.0000,6.0000,0.5000,0.1667,0.8333
+tree,denial_of_service,-,not evaluated,6,,,,,0.8333,,,,
+tree,front_running,-,not evaluated,4,,,,,1.0000,,,,
+tree,other,-,not evaluated,3,,,,,0.6667,,,,
+tree,reentrancy,reentrancy,confirmed,31,0.8387,0.7097,0.9677,0.3538,0.9355,13.0000,0.6154,0.3077,0.8462
+tree,short_addresses,-,not evaluated,1,,,,,0.0000,,,,
+tree,time_manipulation,-,not evaluated,5,,,,,0.8000,,,,
+tree,unchecked_low_level_calls,unchecked-calls,confirmed,52,0.4423,0.3077,0.5769,0.1835,0.8654,32.0000,0.3750,0.2188,0.5312
+forest,access_control,access-control,partial,18,0.7778,0.5556,0.9444,0.3231,0.8333,18.0000,0.7778,0.5556,0.9444
+forest,arithmetic,-,not evaluated,15,,,,,0.1333,,,,
+forest,bad_randomness,bad-randomness,confirmed,8,0.5000,0.1250,0.8750,0.3358,0.8750,6.0000,0.6667,0.3333,1.0000
+forest,denial_of_service,-,not evaluated,6,,,,,0.8333,,,,
+forest,front_running,-,not evaluated,4,,,,,0.5000,,,,
+forest,other,-,not evaluated,3,,,,,0.6667,,,,
+forest,reentrancy,reentrancy,confirmed,31,0.7097,0.5484,0.8710,0.6364,0.8387,13.0000,0.3846,0.1538,0.6923
+forest,short_addresses,-,not evaluated,1,,,,,0.0000,,,,
+forest,time_manipulation,-,not evaluated,5,,,,,0.6000,,,,
+forest,unchecked_low_level_calls,unchecked-calls,confirmed,52,0.2500,0.1346,0.3659,0.1537,0.8654,32.0000,0.0625,0.0000,0.1562
+knn,access_control,access-control,partial,18,0.3889,0.1667,0.6111,0.2115,0.6111,18.0000,0.3889,0.1667,0.6111
+knn,arithmetic,-,not evaluated,15,,,,,0.7333,,,,
+knn,bad_randomness,bad-randomness,confirmed,8,0.5000,0.2500,0.8750,0.1727,1.0000,6.0000,0.5000,0.1667,0.8333
+knn,denial_of_service,-,not evaluated,6,,,,,1.0000,,,,
+knn,front_running,-,not evaluated,4,,,,,0.7500,,,,
+knn,other,-,not evaluated,3,,,,,1.0000,,,,
+knn,reentrancy,reentrancy,confirmed,31,0.9677,0.9032,1.0000,0.5560,1.0000,13.0000,0.9231,0.7692,1.0000
+knn,short_addresses,-,not evaluated,1,,,,,0.0000,,,,
+knn,time_manipulation,-,not evaluated,5,,,,,0.8000,,,,
+knn,unchecked_low_level_calls,unchecked-calls,confirmed,52,0.4808,0.3462,0.6154,0.1997,0.9423,32.0000,0.4062,0.2188,0.5938
+mlp,access_control,access-control,partial,18,0.6111,0.3889,0.8333,0.5611,0.6111,18.0000,0.6111,0.3889,0.8333
+mlp,arithmetic,-,not evaluated,15,,,,,0.2000,,,,
+mlp,bad_randomness,bad-randomness,confirmed,8,0.6250,0.3719,0.8750,0.5364,0.8750,6.0000,0.6667,0.3333,1.0000
+mlp,denial_of_service,-,not evaluated,6,,,,,0.5000,,,,
+mlp,front_running,-,not evaluated,4,,,,,0.5000,,,,
+mlp,other,-,not evaluated,3,,,,,0.6667,,,,
+mlp,reentrancy,reentrancy,confirmed,31,0.8710,0.7419,0.9677,0.8237,0.9032,13.0000,0.7692,0.5385,1.0000
+mlp,short_addresses,-,not evaluated,1,,,,,0.0000,,,,
+mlp,time_manipulation,-,not evaluated,5,,,,,0.8000,,,,
+mlp,unchecked_low_level_calls,unchecked-calls,confirmed,52,0.4808,0.3462,0.6154,0.3489,0.7885,32.0000,0.4062,0.2188,0.5938

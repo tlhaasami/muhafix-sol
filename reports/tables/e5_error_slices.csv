@@ -1,11 +1,11 @@
-slice,value,contracts,label_positives,micro_recall,micro_precision
-len_bucket,shortest 25%,2443,1572,0.7856,0.5790
-len_bucket,short-mid,2438,1990,0.7975,0.5212
-len_bucket,mid-long,2438,4967,0.9368,0.6656
-len_bucket,longest 25%,2440,6987,0.9551,0.7619
-solidity,0.4,2057,2487,0.8384,0.6134
-solidity,0.5,1144,1494,0.9096,0.6342
-solidity,0.6,1977,3069,0.9238,0.7139
-solidity,0.7,775,984,0.8923,0.5932
-solidity,0.8,3683,7349,0.9359,0.7068
-solidity,unknown,123,133,0.8496,0.5567
+slice,value,contracts,label_positives,positives_per_contract,micro_recall,micro_precision
+len_bucket,shortest 25%,2443,1572,0.6435,0.7856,0.5790
+len_bucket,short-mid,2438,1990,0.8162,0.7975,0.5212
+len_bucket,mid-long,2438,4967,2.0373,0.9368,0.6656
+len_bucket,longest 25%,2440,6987,2.8635,0.9551,0.7619
+solidity,0.4,2057,2487,1.2090,0.8384,0.6134
+solidity,0.5,1144,1494,1.3059,0.9096,0.6342
+solidity,0.6,1977,3069,1.5524,0.9238,0.7139
+solidity,0.7,775,984,1.2697,0.8923,0.5932
+solidity,0.8,3683,7349,1.9954,0.9359,0.7068
+solidity,unknown,123,133,1.0813,0.8496,0.5567

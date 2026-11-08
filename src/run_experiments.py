@@ -18,6 +18,7 @@ import argparse
 import json
 import subprocess
 import time
+from pathlib import Path
 from typing import Dict, List
 
 import joblib
@@ -58,7 +59,24 @@ def check_frozen(allow_untagged: bool = False) -> str:
     if (not tag or dirty) and not allow_untagged:
         raise SystemExit("Refusing to evaluate on test/SmartBugs: tag model-v1 missing or thresholds.json "
                          "changed since the tag (acceptance test B2). Use --allow-untagged for development.")
+    # the evaluated copies of the app models must be the files frozen under the tag
+    for fam in ("mlp", "logreg"):
+        exp, app = path("models_dir") / "experiments" / f"{fam}.joblib", path("models_dir") / f"model_{fam}.joblib"
+        if tag and exp.exists() and app.exists() and _sha256(exp) != _sha256(app) and not allow_untagged:
+            raise SystemExit(f"models/experiments/{fam}.joblib differs from the frozen models/model_{fam}.joblib")
     return tag or "untagged"
+
+
+def _sha256(p) -> str:
+    import hashlib
+
+    return hashlib.sha256(Path(p).read_bytes()).hexdigest()
+
+
+def clone_groups_of_test() -> np.ndarray:
+    """Clone-group id of every test contract, in the row order of X_test / Y_test."""
+    df = pd.read_parquet(path("processed_dir") / "dataset.parquet", columns=["split", "group"])
+    return df.loc[df["split"] == "test", "group"].to_numpy()
 
 
 # --------------------------------------------------------------------------- #
@@ -104,6 +122,8 @@ def gold_targets(classes: List[str]) -> pd.DataFrame:
 def e1(fz: Frozen) -> Dict[str, np.ndarray]:
     X, Y = load_test()
     iters = load_config()["training"]["bootstrap_iterations"]
+    groups = clone_groups_of_test()
+    assert len(groups) == len(Y)
     long, summary, probs = [], [], {}
     for fam in [f for f in MODEL_ORDER if f in fz.models]:
         p = fz.proba(fam, X)
@@ -111,8 +131,9 @@ def e1(fz: Frozen) -> Dict[str, np.ndarray]:
         thr = fz.thresholds(fam)
         lg, pc, sm = evaluate(fam, "test", Y, p, thr, fz.classes)
         long.append(lg)
-        lo, hi = metric_ci(Y, p, thr, "macro_pr_auc", iterations=200, seed=seed())
-        flo, fhi = metric_ci(Y, p, thr, "macro_f1", iterations=200, seed=seed())
+        # cluster bootstrap over clone groups, config iterations (blueprint: about 1,000)
+        lo, hi = metric_ci(Y, p, thr, "macro_pr_auc", iterations=iters, seed=seed(), groups=groups)
+        flo, fhi = metric_ci(Y, p, thr, "macro_f1", iterations=iters, seed=seed(), groups=groups)
         summary.append({"model": MODEL_NAMES[fam], "key": fam, "macro_pr_auc": sm["macro_pr_auc"],
                         "macro_pr_auc_ci": f"[{lo:.3f}, {hi:.3f}]", "macro_f1": sm["macro_f1"],
                         "macro_f1_ci": f"[{flo:.3f}, {fhi:.3f}]", "macro_f2": sm["macro_f2"],
@@ -255,7 +276,10 @@ def gold_docs(gold: pd.DataFrame, keep_comments: bool = False, raw: bool = False
 
 
 def e3(fz: Frozen, test_probs: Dict[str, np.ndarray]) -> None:
+    from src.gold_overlap import load as load_overlap
+
     gold = gold_targets(fz.classes)
+    gold["overlap"] = gold["id"].map(load_overlap().set_index("id")["overlap"]).fillna(False).astype(bool)
     Xg = sp.load_npz(path("features_dir") / "X_gold.npz").tocsr()
     iters = load_config()["training"]["bootstrap_iterations"]
     rows, allrows = [], []
@@ -272,9 +296,14 @@ def e3(fz: Frozen, test_probs: Dict[str, np.ndarray]) -> None:
                 c = fz.classes.index(cls)
                 yt = np.ones(len(grp), dtype=int)
                 r, lo, hi, n = recall_with_ci(yt, flags[grp.index, c], iters, seed())
+                clean = grp[~grp["overlap"]]
+                rc, clo, chi, nc = recall_with_ci(np.ones(len(clean), dtype=int), flags[clean.index, c], iters,
+                                                  seed())
                 row.update({"recall": r, "ci_low": lo, "ci_high": hi,
                             "mean_probability": float(p[grp.index, c].mean()),
-                            "any_flag_rate": float(flags[grp.index].any(1).mean())})
+                            "any_flag_rate": float(flags[grp.index].any(1).mean()),
+                            "contracts_no_overlap": nc, "recall_no_overlap": rc,
+                            "ci_low_no_overlap": clo, "ci_high_no_overlap": chi})
             else:
                 row.update({"recall": np.nan, "ci_low": np.nan, "ci_high": np.nan, "mean_probability": np.nan,
                             "any_flag_rate": float(flags[grp.index].any(1).mean())})
@@ -293,9 +322,13 @@ def e3(fz: Frozen, test_probs: Dict[str, np.ndarray]) -> None:
     for fam in [f for f in MODEL_ORDER if f in fz.models]:
         conf = allr[(allr.model == fam) & (allr.status == "confirmed")]
         pooled = float((conf["recall"] * conf["contracts"]).sum() / conf["contracts"].sum())
+        pooled_clean = float((conf["recall_no_overlap"] * conf["contracts_no_overlap"]).sum()
+                             / conf["contracts_no_overlap"].sum())
         clean = Y.sum(1) == 0
         fl = binarize(test_probs[fam], fz.thresholds(fam))
         fp_rows.append({"model": MODEL_NAMES[fam], "key": fam, "smartbugs_pooled_recall_confirmed": pooled,
+                        "smartbugs_pooled_recall_confirmed_no_overlap": pooled_clean,
+                        "smartbugs_confirmed_contracts_no_overlap": int(conf["contracts_no_overlap"].sum()),
                         "test_clean_contracts": int(clean.sum()),
                         "false_alarm_rate_on_clean_test": float(fl[clean].any(1).mean()),
                         "macro_fpr_test": float(np.mean([(fl[:, c] & (Y[:, c] == 0)).sum() / max((Y[:, c] == 0).sum(), 1)

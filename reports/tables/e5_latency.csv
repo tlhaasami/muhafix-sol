@@ -1,10 +1,10 @@
 input,lines,first_predict_ms,warm_predict_ms_median,explain_ms,similar_ms
-01_clean_token.sol,49.0000,59.8192,77.3136,177.1290,257.0033
-02_reentrancy_bank.sol,24.0000,90.3685,77.0438,137.3793,101.8667
-03_unchecked_send.sol,36.0000,58.1631,60.1337,135.8400,102.0325
-04_weak_randomness_lottery.sol,26.0000,58.4111,60.6209,155.4330,104.2771
-05_tricky_safe_with_keywords.sol,33.0000,60.5878,59.6860,134.2432,129.4912
-06_tricky_renamed_reentrancy.sol,20.0000,68.5909,58.5195,132.4689,100.8311
-smartbugs longest (unchecked_low_level_calls/0x663e4229142a27f00bafb5d087e1e730648314c3.sol),2470.0000,99.5113,99.5113,435.7428,
-synthetic 10x long file,24700.0000,400.2753,400.2753,1282.3596,
-cold start: load all model files,,473.0117,,,
+01_clean_token.sol,49.0000,61.3428,59.8841,163.4871,244.4712
+02_reentrancy_bank.sol,24.0000,60.2620,60.7618,155.6377,121.0221
+03_unchecked_send.sol,36.0000,65.3900,64.5429,137.5343,100.5624
+04_weak_randomness_lottery.sol,26.0000,60.6866,64.5543,128.6479,104.4979
+05_tricky_safe_with_keywords.sol,33.0000,60.4523,59.3179,135.8176,103.8016
+06_tricky_renamed_reentrancy.sol,20.0000,60.2582,62.5448,122.7988,100.0241
+smartbugs longest (unchecked_low_level_calls/0x663e4229142a27f00bafb5d087e1e730648314c3.sol),2470.0000,102.6131,102.6513,471.8265,
+synthetic 10x long file,24700.0000,401.3623,413.1292,1278.0939,
+cold start: load all model files,,445.7556,,,
