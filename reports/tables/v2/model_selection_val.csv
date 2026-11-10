@@ -1,0 +1,7 @@
+model,params,val_macro_pr_auc,val_macro_f2,val_macro_f1,ece_before,ece_after,calibrated,fit_seconds,size_mb,primary
+mlp,"{""input"": ""tfidf"", ""seed"": 44}",0.83929,0.81483,0.73219,0.04861,0.04861,False,2009.40000,18.02000,True
+logreg,"{""C"": 4.0}",0.81194,0.81159,0.71540,0.07346,0.01334,True,117.70000,0.96000,False
+forest,"{""n_estimators"": 200, ""max_depth"": null, ""min_samples_leaf"": 1}",0.77166,0.76033,0.66712,0.05763,0.01204,True,515.10000,208.47000,False
+knn,"{""k"": 15}",0.61530,0.65093,0.56121,0.04069,0.04069,False,1.40000,87.51000,False
+tree,"{""max_depth"": 32, ""min_samples_leaf"": 20}",0.52570,0.65797,0.50879,0.14790,0.03904,True,741.40000,0.31000,False
+prior,{},0.20665,0.50295,0.32305,0.02130,0.02130,False,0.00000,0.00000,False

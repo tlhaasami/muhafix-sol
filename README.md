@@ -49,6 +49,34 @@ RUN_SLOW=1 pytest                         # also re-trains logistic regression a
 Every path, seed and hyper-parameter lives in `config.yaml`. Seed 42 everywhere; `python -m src.build_data`
 reproduces identical split hashes (`data/processed/build_summary.json`).
 
+## model-v2 (SmartBugs-independent retrain)
+
+model-v1 is the reported model. After the review found that 42 SmartBugs contracts also occur in the training
+pool, model-v2 was trained with the same settings after removing those clone groups (46 contracts):
+
+```bash
+python -m src.build_v2                                   # v2 data pack: overlap removed, TF-IDF refitted
+MUHAFIZ_VARIANT=v2 python -m src.train --fixed-from models/thresholds.json   # same hyper-parameters as v1
+git tag model-v2
+MUHAFIZ_VARIANT=v2 python -m src.gold_overlap && MUHAFIZ_VARIANT=v2 python -m src.run_experiments --only e1 e3
+MUHAFIZ_VARIANT=v2 python -m src.eval_explain
+```
+
+`MUHAFIZ_VARIANT=v2` only redirects data, models and tables to `data/*_v2`, `models/v2` and `reports/tables/v2`;
+model-v1 files are never touched. The comparison is in report section 5.5.
+
+## Windows Smart App Control
+
+If Windows reports "An Application Control policy has blocked this file" when importing pandas, scikit-learn or
+PyTorch, Smart App Control is blocking the compiled libraries. Run the project inside WSL (Ubuntu) instead:
+
+```bash
+wsl
+cd /mnt/b/PersonalFolder/University/AI-Project        # adjust to where the repository is
+python3 -m venv ~/muhafiz-venv && ~/muhafiz-venv/bin/pip install -r requirements.txt
+~/muhafiz-venv/bin/streamlit run app/app.py            # then open http://localhost:8501 in the Windows browser
+```
+
 ## Data
 
 | | Dataset A — training | Dataset B — external test only |

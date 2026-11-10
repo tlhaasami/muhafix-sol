@@ -1,0 +1,166 @@
+{
+  "version": "1.0.0",
+  "target_classes": [
+    "access-control",
+    "arithmetic",
+    "bad-randomness",
+    "locked-ether",
+    "other",
+    "reentrancy",
+    "unchecked-calls"
+  ],
+  "class_to_id": {
+    "access-control": 0,
+    "arithmetic": 1,
+    "bad-randomness": 2,
+    "locked-ether": 3,
+    "other": 4,
+    "reentrancy": 5,
+    "unchecked-calls": 6
+  },
+  "merged_into_other": [
+    "double-spending"
+  ],
+  "excluded_families": [],
+  "family_stats_dedup_pool": {
+    "access-control": {
+      "positives": 9654,
+      "prevalence": 0.14839066678963386
+    },
+    "arithmetic": {
+      "positives": 12453,
+      "prevalence": 0.19141381536475147
+    },
+    "bad-randomness": {
+      "positives": 2503,
+      "prevalence": 0.03847336223062498
+    },
+    "double-spending": {
+      "positives": 368,
+      "prevalence": 0.005656491130990808
+    },
+    "locked-ether": {
+      "positives": 3287,
+      "prevalence": 0.0505241476836054
+    },
+    "other": {
+      "positives": 22446,
+      "prevalence": 0.34501521719081435
+    },
+    "reentrancy": {
+      "positives": 18710,
+      "prevalence": 0.28758953549140764
+    },
+    "safe": {
+      "positives": 17900,
+      "prevalence": 0.2751391066433029
+    },
+    "unchecked-calls": {
+      "positives": 31144,
+      "prevalence": 0.4787113037597221
+    }
+  },
+  "detector_to_family": {
+    "suicidal": "access-control",
+    "arbitrary-send": "access-control",
+    "unused-return": "unchecked-calls",
+    "unchecked-lowlevel": "unchecked-calls",
+    "erc20-interface": "ignore",
+    "msg-value-loop": "double-spending",
+    "controlled-array-length": "access-control",
+    "locked-ether": "locked-ether",
+    "shadowing-state": "ignore",
+    "tx-origin": "access-control",
+    "delegatecall-loop": "double-spending",
+    "shadowing-abstract": "ignore",
+    "constant-function-state": "other",
+    "divide-before-multiply": "arithmetic",
+    "array-by-reference": "other",
+    "incorrect-equality": "other",
+    "name-reused": "ignore",
+    "incorrect-shift": "ignore",
+    "rtlo": "other",
+    "backdoor": "other",
+    "write-after-write": "ignore",
+    "weak-prng": "bad-randomness",
+    "public-mappings-nested": "ignore",
+    "controlled-delegatecall": "access-control",
+    "reentrancy-no-eth": "reentrancy",
+    "constant-function-asm": "other",
+    "reused-constructor": "ignore",
+    "reentrancy-eth": "reentrancy",
+    "unprotected-upgrade": "access-control",
+    "uninitialized-storage": "other",
+    "tautology": "ignore",
+    "unchecked-send": "unchecked-calls",
+    "erc721-interface": "ignore",
+    "uninitialized-local": "other",
+    "unchecked-transfer": "unchecked-calls",
+    "boolean-cst": "ignore",
+    "mapping-deletion": "other",
+    "uninitialized-state": "other",
+    "safe": "safe"
+  },
+  "overrides_vs_upstream": {
+    "unchecked-send": {
+      "upstream": "locked-ether",
+      "ours": "unchecked-calls"
+    }
+  },
+  "smartbugs_category_mapping": {
+    "reentrancy": {
+      "class": "reentrancy",
+      "status": "confirmed",
+      "reason": "Slither reentrancy-eth / reentrancy-no-eth detect the same pattern."
+    },
+    "unchecked_low_level_calls": {
+      "class": "unchecked-calls",
+      "status": "confirmed",
+      "reason": "unchecked-lowlevel and unchecked-send detect ignored call/send results."
+    },
+    "bad_randomness": {
+      "class": "bad-randomness",
+      "status": "confirmed",
+      "reason": "weak-prng flags randomness derived from block variables."
+    },
+    "access_control": {
+      "class": "access-control",
+      "status": "partial",
+      "reason": "suicidal / tx-origin / arbitrary-send cover only part of SmartBugs access control (e.g. wrong constructor names are not detected by any training label)."
+    },
+    "arithmetic": {
+      "class": null,
+      "status": "not evaluated",
+      "reason": "Training label 'arithmetic' is divide-before-multiply only; SmartBugs means integer overflow."
+    },
+    "denial_of_service": {
+      "class": null,
+      "status": "not evaluated",
+      "reason": "No Slither label in the dataset detects DoS."
+    },
+    "front_running": {
+      "class": null,
+      "status": "not evaluated",
+      "reason": "No Slither label in the dataset detects front running."
+    },
+    "time_manipulation": {
+      "class": null,
+      "status": "not evaluated",
+      "reason": "Slither's 'timestamp' detector is not among the 38 dataset labels."
+    },
+    "short_addresses": {
+      "class": null,
+      "status": "not evaluated",
+      "reason": "No corresponding label."
+    },
+    "other": {
+      "class": null,
+      "status": "not evaluated",
+      "reason": "Heterogeneous category."
+    }
+  },
+  "rule": {
+    "min_prevalence": 0.01,
+    "min_train_positives": 300
+  }
+}

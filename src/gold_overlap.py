@@ -37,6 +37,9 @@ def compute() -> pd.DataFrame:
     # every Dataset A contract (also removed exact duplicates) -> split of its representative
     hash_split = tok.merge(ds, on="address", how="inner").drop_duplicates("exact_hash").set_index("exact_hash")["split"]
     tok["split"] = tok["exact_hash"].map(hash_split)
+    # only contracts that are in the data pack count (filtered-out sources, and for model-v2 the removed
+    # SmartBugs-overlap groups, were never trained on)
+    tok = tok[tok["split"].notna()].reset_index(drop=True)
     sigs = np.frombuffer(b"".join(tok["signature"].tolist()), dtype=np.uint64).reshape(len(tok), -1)
     addr_split = dict(zip(tok["address"].str.lower(), tok["split"]))
 

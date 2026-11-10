@@ -28,9 +28,25 @@ def load_config() -> Dict[str, Any]:
         return yaml.safe_load(fh)
 
 
+def variant() -> str:
+    """Model variant: '' for model-v1, or a key of the ``variants`` section (set MUHAFIZ_VARIANT=v2)."""
+    return os.environ.get("MUHAFIZ_VARIANT", "").strip()
+
+
 def path(key: str) -> Path:
-    """Return an absolute path for an entry of the ``paths`` section."""
-    return ROOT / load_config()["paths"][key]
+    """Return an absolute path for an entry of the ``paths`` section (redirected for a model variant)."""
+    cfg = load_config()
+    v = variant()
+    if v:
+        over = cfg.get("variants", {}).get(v, {}).get("paths", {})
+        if key in over:
+            return ROOT / over[key]
+    return ROOT / cfg["paths"][key]
+
+
+def freeze_tag() -> str:
+    v = variant()
+    return load_config().get("variants", {}).get(v, {}).get("tag", "model-v1") if v else "model-v1"
 
 
 def seed() -> int:

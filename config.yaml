@@ -20,6 +20,18 @@ paths:
   tables_dir: "reports/tables"
   docs_dir: "docs"
 
+# model-v2 (review follow-up): same configuration, retrained after removing every Dataset A contract whose
+# clone group overlaps SmartBugs, so the external test is fully independent. MUHAFIZ_VARIANT=v2 redirects:
+variants:
+  v2:
+    tag: "model-v2"
+    paths:
+      processed_dir: "data/processed_v2"
+      features_dir: "data/features_v2"
+      models_dir: "models/v2"
+      tables_dir: "reports/tables/v2"
+      figures_dir: "reports/figures/v2"
+
 dataset:
   # Dataset A: training / validation / in-distribution test.
   slither_hf_repo: "mwritescode/slither-audited-smart-contracts"

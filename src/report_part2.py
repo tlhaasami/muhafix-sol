@@ -324,6 +324,79 @@ def chapter5(doc, f: Facts) -> None:
                 "choice of the n-gram range is the first item of future work.")
 
 
+    section_model_v2(doc, f)
+
+def section_model_v2(doc, f: Facts) -> None:
+    """5.5: model-v2, retrained without the SmartBugs overlap (only if its results exist)."""
+    from src.config import ROOT, load_config
+
+    vcfg = load_config().get("variants", {}).get("v2", {}).get("paths", {})
+    t2 = ROOT / vcfg.get("tables_dir", "reports/tables/v2")
+    b2 = ROOT / vcfg.get("processed_dir", "data/processed_v2") / "build_summary.json"
+    need = ["e1_test_summary.csv", "e3_summary.csv", "e3b_hit_rate.csv", "model_selection_val.csv"]
+    if not all((t2 / n).exists() for n in need) or not b2.exists():
+        return
+    rd = lambda n: pd.read_csv(t2 / n)
+    e1a, e1b = f.t["e1_test_summary"].set_index("key"), rd("e1_test_summary.csv").set_index("key")
+    s3a, s3b = f.t["e3_summary"].set_index("key"), rd("e3_summary.csv").set_index("key")
+    hra, hrb = f.t["e3b_hit_rate"].set_index("category"), rd("e3b_hit_rate.csv").set_index("category")
+    sva, svb = f.t["model_selection_val"].set_index("model"), rd("model_selection_val.csv").set_index("model")
+    ex = json.loads(b2.read_text())["smartbugs_exclusion"]
+    k = f.primary
+    v2_primary = svb[svb["primary"].astype(str) == "True"].index[0] if "primary" in svb else k
+    doc.h("5.5 model-v2 - retrained without the SmartBugs overlap", 2)
+    doc.p(f"After the review found the overlap described in 5.3, a second model was trained to make the external "
+          f"test fully independent. Every Dataset A clone group containing a copy or near copy of a SmartBugs "
+          f"contract was removed ({ex['clone_groups_removed']} groups, {ex['contracts_removed']} contracts: "
+          f"{ex['removed_by_split']['train']} train, {ex['removed_by_split']['val']} validation, "
+          f"{ex['removed_by_split']['test']} test); all other contracts kept their split, the TF-IDF pipeline was "
+          "refitted, and every model was retrained with exactly the hyper-parameters model-v1 had chosen (MLP on "
+          "TF-IDF, seed 44), so nothing was tuned on test results. Thresholds were again chosen on validation and "
+          "the model was frozen under git tag model-v2 before its own test and SmartBugs evaluation "
+          "(python -m src.build_v2, then the usual scripts with MUHAFIZ_VARIANT=v2). model-v1 stays the "
+          "reported model; model-v2 checks how much the overlap mattered.")
+
+    def g(df, idx, col):
+        try:
+            return float(df.loc[idx, col])
+        except (KeyError, ValueError):
+            return float("nan")
+    conf_a = "confirmed classes"
+    rows = [
+        ["Primary model", MODEL_NAMES[k], MODEL_NAMES.get(v2_primary, v2_primary)],
+        ["Validation macro PR-AUC (primary)", f"{g(sva, k, 'val_macro_pr_auc'):.3f}", f"{g(svb, v2_primary, 'val_macro_pr_auc'):.3f}"],
+        ["Test macro PR-AUC (MLP)", f"{g(e1a, 'mlp', 'macro_pr_auc'):.3f} {e1a.loc['mlp', 'macro_pr_auc_ci']}",
+         f"{g(e1b, 'mlp', 'macro_pr_auc'):.3f} {e1b.loc['mlp', 'macro_pr_auc_ci']}"],
+        ["Test macro F1 (MLP)", f"{g(e1a, 'mlp', 'macro_f1'):.3f}", f"{g(e1b, 'mlp', 'macro_f1'):.3f}"],
+        ["Test macro PR-AUC (logistic regression)", f"{g(e1a, 'logreg', 'macro_pr_auc'):.3f}", f"{g(e1b, 'logreg', 'macro_pr_auc'):.3f}"],
+        ["SmartBugs recall, confirmed classes, all contracts (MLP)",
+         f"{pct(g(s3a, 'mlp', 'smartbugs_pooled_recall_confirmed'))} of 91",
+         f"{pct(g(s3b, 'mlp', 'smartbugs_pooled_recall_confirmed'))} of 91"],
+        ["SmartBugs recall, contracts with no copy in training (MLP)",
+         f"{pct(g(s3a, 'mlp', 'smartbugs_pooled_recall_confirmed_no_overlap'))} of "
+         f"{int(g(s3a, 'mlp', 'smartbugs_confirmed_contracts_no_overlap'))}",
+         f"{pct(g(s3b, 'mlp', 'smartbugs_pooled_recall_confirmed_no_overlap'))} of "
+         f"{int(g(s3b, 'mlp', 'smartbugs_confirmed_contracts_no_overlap'))}"],
+        ["False alarms on clean test contracts (MLP)", pct(g(s3a, 'mlp', 'false_alarm_rate_on_clean_test')),
+         pct(g(s3b, 'mlp', 'false_alarm_rate_on_clean_test'))],
+        ["E3b: annotated line in top 3 (confirmed classes)", pct(g(hra, conf_a, 'strict@3')), pct(g(hrb, conf_a, 'strict@3'))],
+    ]
+    doc.table(pd.DataFrame(rows, columns=["", "model-v1 (reported)", "model-v2 (no overlap)"]),
+              "model-v1 vs model-v2 (test split and SmartBugs)", widths=[7.5, 4.6, 4.7], font=8.5)
+    d_test = g(e1b, "mlp", "macro_pr_auc") - g(e1a, "mlp", "macro_pr_auc")
+    r_all_a, r_all_b = g(s3a, "mlp", "smartbugs_pooled_recall_confirmed"), g(s3b, "mlp", "smartbugs_pooled_recall_confirmed")
+    r_clean_a = g(s3a, "mlp", "smartbugs_pooled_recall_confirmed_no_overlap")
+    doc.p(f"Interpretation. Removing {ex['removed_by_split']['train']} of about 45,500 training contracts leaves the "
+          f"in-distribution result essentially unchanged (test macro PR-AUC {d_test:+.3f}). On SmartBugs, where all "
+          f"91 confirmed-category contracts are now independent of training, model-v2 flags {pct(r_all_b)}, against "
+          f"{pct(r_all_a)} for model-v1 on the same contracts and {pct(r_clean_a)} for model-v1 on its 51 clean "
+          "contracts. "
+          + ("The drop from model-v1's all-contract figure confirms that part of it came from recognising contracts "
+             "seen in training; the independent figure is the one to quote. " if r_all_b < r_all_a - 0.01 else
+             "The recall barely moves, so the overlap did not inflate model-v1's SmartBugs result much. ")
+          + "The intervals on 91 contracts are narrower than on 51, which is the main gain of model-v2.")
+
+
 def chapter7(doc, f: Facts) -> None:
     doc.h("7. Testing and Evaluation Evidence")
     ev = path("docs_dir") / "test_evidence.json"
