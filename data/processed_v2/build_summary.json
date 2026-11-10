@@ -1,0 +1,54 @@
+{
+  "funnel": {
+    "rows_in_raw_shards": 120608,
+    "after_dropping_duplicate_addresses": 120608,
+    "after_dropping_failed_slither_runs": 120608,
+    "after_dropping_empty_or_tiny_sources": 120510,
+    "after_exact_deduplication": 65058,
+    "after_removing_smartbugs_overlap": 65012
+  },
+  "dedup": {
+    "documents": 120510,
+    "unique_exact": 65058,
+    "exact_duplicates": 55452,
+    "exact_duplicate_pct": 46.01443863579786,
+    "near_duplicate_pairs": 1192678,
+    "groups": 31186,
+    "singleton_groups": 21564,
+    "largest_group": 7170,
+    "docs_in_multi_member_groups_pct": 82.10604929051532,
+    "exact_groups_with_label_conflicts": 56,
+    "exact_groups_with_duplicates": 9947,
+    "random_split_leakage_rate": 0.5852034019879085,
+    "group_split_leakage_rate": 0.0,
+    "groups_after_exact_dedup": 31186,
+    "largest_group_after_exact_dedup": 5319,
+    "giant_groups_forced_to_train": 6,
+    "contracts_in_giant_groups": 10085,
+    "largest_group_in_val_or_test": 593
+  },
+  "split_sizes": {
+    "train": 45519,
+    "val": 9752,
+    "test": 9741
+  },
+  "classes": [
+    "access-control",
+    "arithmetic",
+    "bad-randomness",
+    "locked-ether",
+    "other",
+    "reentrancy",
+    "unchecked-calls"
+  ],
+  "smartbugs_exclusion": {
+    "clone_groups_removed": 21,
+    "contracts_removed": 46,
+    "removed_by_split": {
+      "train": 21,
+      "val": 7,
+      "test": 18
+    },
+    "smartbugs_contracts_matched": 42
+  }
+}
