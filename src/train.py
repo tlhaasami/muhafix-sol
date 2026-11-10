@@ -448,4 +448,4 @@ if __name__ == "__main__":
         if args.prefix:
             raise SystemExit("freeze is only defined for the cluster-aware split")
         _, Yva = load_xy("val")
-        freeze(assemble(candidate_dir(out_dir, args.quick), Yva, quick=args.quick), quick=args.quick)
+        freeze(assemble(candidate_dir(out_dir, args.quick), Yva, fixed=fixed, quick=args.quick), quick=args.quick)

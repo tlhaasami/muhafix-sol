@@ -27,7 +27,7 @@ import pandas as pd
 import scipy.sparse as sp
 
 from src import plotstyle
-from src.config import ROOT, load_config, path, read_json, seed, write_json
+from src.config import ROOT, freeze_tag, load_config, path, read_json, seed, write_json
 from src.evaluate import (binarize, calibration_table, choose_thresholds, evaluate, metric_ci, pr_auc,
                           recall_with_ci, summary_metrics)
 from src.train import apply_platt
@@ -50,10 +50,11 @@ def _csv(df: pd.DataFrame, name: str) -> None:
 def check_frozen(allow_untagged: bool = False) -> str:
     """Refuse to evaluate on test/gold unless model-v1 exists and thresholds are unchanged."""
     try:
-        tag = subprocess.run(["git", "-C", str(ROOT), "rev-parse", "-q", "--verify", "refs/tags/model-v1"],
+        tname = freeze_tag()
+        rel = (path("models_dir") / "thresholds.json").relative_to(ROOT).as_posix()
+        tag = subprocess.run(["git", "-C", str(ROOT), "rev-parse", "-q", "--verify", f"refs/tags/{tname}"],
                              capture_output=True, text=True).stdout.strip()
-        dirty = subprocess.run(["git", "-C", str(ROOT), "diff", "--quiet", "model-v1", "--",
-                                "models/thresholds.json"]).returncode if tag else 1
+        dirty = subprocess.run(["git", "-C", str(ROOT), "diff", "--quiet", tname, "--", rel]).returncode if tag else 1
     except FileNotFoundError:
         tag, dirty = "", 1
     if (not tag or dirty) and not allow_untagged:

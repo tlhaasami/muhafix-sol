@@ -39,3 +39,10 @@ Thumbs.db
 dist/
 .venv-gpu/
 ~$*
+
+# model-v2 working data (regenerable; build_summary and the exclusion list are kept)
+data/features_v2/
+data/processed_v2/*
+!data/processed_v2/build_summary.json
+!data/processed_v2/smartbugs_exclusion.csv
+models/v2/experiments/
